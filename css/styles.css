@@ -1,14 +1,15 @@
 /* Recebe Fácil — protótipo de demonstração */
 :root {
-  --bg: #f4f6fb;
+  --bg: #f7f5ec;
   --surface: #ffffff;
-  --surface-2: #f8f9fc;
-  --border: #e4e7ef;
-  --text: #141a2e;
-  --muted: #667085;
-  --primary: #4f46e5;
-  --primary-600: #4338ca;
-  --primary-soft: #eef0ff;
+  --surface-2: #fbfaf4;
+  --border: #e6e2d4;
+  --text: #17201b;
+  --muted: #646b63;
+  --primary: #1b7f37;
+  --primary-600: #0e3b2e;
+  --primary-soft: #e5f3e8;
+  --brand-dark: #0e3b2e;
   --success: #12a150;
   --success-soft: #e7f7ee;
   --warning: #d97706;
@@ -31,8 +32,8 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d111c; --surface: #151a28; --surface-2: #1b2133; --border: #262e44; --text: #e8ebf3; --muted: #95a0b8;
-    --primary: #7c74ff; --primary-600: #6a61f5; --primary-soft: #23244a;
+    --bg: #0c120f; --surface: #141c17; --surface-2: #1a241e; --border: #26332b; --text: #e9eee9; --muted: #9aa69d;
+    --primary: #2c9a4a; --primary-600: #23843e; --primary-soft: #16301f;
     --success: #34d17a; --success-soft: #133525; --warning: #f5a524; --warning-soft: #3a2a10;
     --danger: #f26363; --danger-soft: #3d1a1d; --info: #38bdf8; --info-soft: #0f2d3d;
     --wa-bg: #0b141a; --wa-out: #005c4b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.25);
@@ -40,8 +41,8 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0d111c; --surface: #151a28; --surface-2: #1b2133; --border: #262e44; --text: #e8ebf3; --muted: #95a0b8;
-  --primary: #7c74ff; --primary-600: #6a61f5; --primary-soft: #23244a;
+  --bg: #0c120f; --surface: #141c17; --surface-2: #1a241e; --border: #26332b; --text: #e9eee9; --muted: #9aa69d;
+  --primary: #2c9a4a; --primary-600: #23843e; --primary-soft: #16301f;
   --success: #34d17a; --success-soft: #133525; --warning: #f5a524; --warning-soft: #3a2a10;
   --danger: #f26363; --danger-soft: #3d1a1d; --info: #38bdf8; --info-soft: #0f2d3d;
   --wa-bg: #0b141a; --wa-out: #005c4b; --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.25);
@@ -80,7 +81,7 @@ h1, h2, h3, h4 { margin: 0; letter-spacing: -.01em; }
   background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 18px 14px;
 }
 .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; color: var(--text); }
-.brand-mark { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--primary), #8b5cf6); display: grid; place-items: center; color: #fff; box-shadow: 0 6px 16px rgba(79,70,229,.35); }
+.brand-mark { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #1f9a3e, #0e3b2e); display: grid; place-items: center; color: #fff; box-shadow: 0 6px 16px rgba(14,59,46,.3); }
 .brand-mark svg { width: 20px; height: 20px; stroke-width: 3; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-text b { font-size: 16px; }

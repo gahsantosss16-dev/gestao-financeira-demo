@@ -41,7 +41,7 @@
   }
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const initials = (n) => n.split(/\s+/).filter((w) => w.length > 2 || /^[A-Z]/.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-  const COLORS = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#64748b', '#84cc16'];
+  const COLORS = ['#1b7f37', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#64748b', '#84cc16'];
   const colorFor = (id) => COLORS[parseInt(id.replace(/\D/g, ''), 10) % COLORS.length];
   const avatar = (c, size = '') => `<span class="avatar ${size}" style="background:${colorFor(c.id)}">${esc(initials(c.name))}</span>`;
   const monthKey = (d) => d.slice(0, 7);
@@ -311,11 +311,11 @@
         <a class="card kpi" href="#/contas" data-goto-filter="contas:status=aberto"><div class="kpi-top">A receber (30 dias)<span class="kpi-ico tone-primary">${ic('calendar')}</span></div><div class="kpi-val">${brl(next30.reduce((a, i) => a + remaining(i), 0))}</div><div class="kpi-sub">${next30.length} parcelas a vencer</div></a>
         <a class="card kpi" href="#/pagamentos"><div class="kpi-top">Recebido em ${MONTHS_FULL[mm - 1]}<span class="kpi-ico tone-success">${ic('trend')}</span></div><div class="kpi-val">${brl(recvMonth)}</div><div class="kpi-sub"><span class="${delta >= 0 ? 'text-success' : 'text-danger'} fw">${delta >= 0 ? '▲' : '▼'} ${pct(Math.abs(delta))}</span> vs. mesmo período do mês anterior</div></a>
         <a class="card kpi" href="#/contas" data-goto-filter="contas:status=vencido"><div class="kpi-top">Vencido<span class="kpi-ico tone-danger">${ic('alert')}</span></div><div class="kpi-val">${brl(overdueSum)}</div><div class="kpi-sub">${overdue.length} parcelas · ${overdueClients} clientes</div></a>
-        <a class="card kpi" href="#/relatorios"><div class="kpi-top">Inadimplência<span class="kpi-ico tone-warning">${ic('clock')}</span></div><div class="kpi-val">${pct(dueUntilToday ? (overdueSum / dueUntilToday) * 100 : 0)}</div><div class="kpi-sub">do valor já vencido está em aberto</div></a>
+        <a class="card kpi" href="#/relatorios"><div class="kpi-top">Inadimplência<span class="kpi-ico tone-danger">${ic('alert')}</span></div><div class="kpi-val">${pct(dueUntilToday ? (overdueSum / dueUntilToday) * 100 : 0)}</div><div class="kpi-sub">${brl(overdueSum)} vencido em aberto</div></a>
       </div>
       <div class="grid g-2-1 mb">
-        <div class="card"><div class="card-head"><h3>Previsto x recebido · últimos 6 meses</h3><div class="legend"><span><i style="background:#c7d2fe"></i>Previsto</span><span><i style="background:var(--primary)"></i>Recebido</span></div></div>
-          <div class="card-pad">${barChart(months.map(monthLabel), [{ name: 'Previsto', color: '#c7d2fe', values: expected }, { name: 'Recebido', color: 'var(--primary)', values: received }])}</div></div>
+        <div class="card"><div class="card-head"><h3>Previsto x recebido · últimos 6 meses</h3><div class="legend"><span><i style="background:#b9dcc2"></i>Previsto</span><span><i style="background:var(--primary)"></i>Recebido</span></div></div>
+          <div class="card-pad">${barChart(months.map(monthLabel), [{ name: 'Previsto', color: '#b9dcc2', values: expected }, { name: 'Recebido', color: 'var(--primary)', values: received }])}</div></div>
         <div class="card"><div class="card-head"><h3>Situação do mês</h3><small>${monthInsts.length} parcelas</small></div>
           ${donut([{ label: 'Recebido', value: seg.pago, color: '#12a150' }, { label: 'A vencer', value: seg.aberto, color: '#0ea5e9' }, { label: 'Vencido', value: seg.vencido, color: '#ef4444' }], monthTotal ? pct((seg.pago / monthTotal) * 100) : '0%', 'recebido')}</div>
       </div>
@@ -679,7 +679,7 @@
     const exp = months.map((m) => insts.filter((i) => monthKey(i.due) === m).reduce((a, i) => a + i.amount, 0));
     const rec = months.map((m) => pays.filter((p) => monthKey(p.date) === m).reduce((a, p) => a + p.amount, 0));
     const byM = {}; pays.forEach((p) => { byM[p.method] = (byM[p.method] || 0) + p.amount; });
-    const methodColors = { PIX: '#10b981', Boleto: '#4f46e5', 'Cartão de crédito': '#f59e0b', 'Transferência': '#0ea5e9', Dinheiro: '#64748b' };
+    const methodColors = { PIX: '#10b981', Boleto: '#6b8f3a', 'Cartão de crédito': '#f59e0b', 'Transferência': '#0ea5e9', Dinheiro: '#64748b' };
     // aging da carteira vencida atual
     const buckets = [['1–15 dias', 1, 15], ['16–30 dias', 16, 30], ['31–60 dias', 31, 60], ['61–90 dias', 61, 90], ['Mais de 90', 91, 1e9]];
     const overdueNow = openInsts().filter((i) => status(i) === 'vencido' && okC(i.clientId));
@@ -698,8 +698,8 @@
         <div class="card kpi"><div class="kpi-top">Pagamentos em dia<span class="kpi-ico tone-info">${ic('check')}</span></div><div class="kpi-val">${pct(paidCount ? (onTime / paidCount) * 100 : 0)}</div><div class="kpi-sub">${onTime} de ${paidCount} parcelas pagas</div></div>
       </div>
       <div class="grid g-2-1 mb">
-        <div class="card"><div class="card-head"><h3>Faturado x recebido por mês</h3><div class="legend"><span><i style="background:#c7d2fe"></i>Faturado</span><span><i style="background:var(--success)"></i>Recebido</span></div></div>
-          <div class="card-pad">${months.length ? barChart(months.map(monthLabel), [{ name: 'Faturado', color: '#c7d2fe', values: exp }, { name: 'Recebido', color: 'var(--success)', values: rec }]) : empty('Período inválido')}</div></div>
+        <div class="card"><div class="card-head"><h3>Faturado x recebido por mês</h3><div class="legend"><span><i style="background:#b9dcc2"></i>Faturado</span><span><i style="background:var(--success)"></i>Recebido</span></div></div>
+          <div class="card-pad">${months.length ? barChart(months.map(monthLabel), [{ name: 'Faturado', color: '#b9dcc2', values: exp }, { name: 'Recebido', color: 'var(--success)', values: rec }]) : empty('Período inválido')}</div></div>
         <div class="stack">
           <div class="card"><div class="card-head"><h3>Recebido por forma de pagamento</h3></div><div class="card-pad">${Object.keys(byM).length ? hbars(Object.entries(byM).sort((a, b) => b[1] - a[1]).map(([l, v]) => ({ label: l, value: v, color: methodColors[l] })), 'var(--primary)') : empty('Sem pagamentos no período', 'wallet')}</div></div>
           <div class="card"><div class="card-head"><h3>Aging da carteira vencida</h3><small>posição de hoje</small></div><div class="card-pad">${hbars(aging)}</div></div>
