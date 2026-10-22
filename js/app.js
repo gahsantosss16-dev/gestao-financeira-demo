@@ -650,7 +650,7 @@
     const f = ui.relatorios;
     return `
       <div class="page-head"><div><h1>Relatórios</h1><p>Faturamento, recebimentos, inadimplência e desempenho por cliente</p></div>
-        <div class="actions"><button class="btn" data-action="print">${ic('printer')} Imprimir</button><button class="btn" data-action="export-report">${ic('download')} Exportar CSV</button></div></div>
+        <div class="actions"><button class="btn" data-action="print">${ic('printer')} Imprimir</button><button class="btn" data-action="export-pdf">${ic('download')} Baixar PDF</button><button class="btn" data-action="export-report">${ic('download')} Exportar CSV</button></div></div>
       <div class="card mb no-print"><div class="toolbar" style="border:0">
         <span class="muted row">${ic('filter')} Filtros</span>
         <select class="select" data-filter="relatorios.period" aria-label="Período"><option value="mes" ${f.period === 'mes' ? 'selected' : ''}>Mês atual</option><option value="3m" ${f.period === '3m' ? 'selected' : ''}>Últimos 3 meses</option><option value="6m" ${f.period === '6m' ? 'selected' : ''}>Últimos 6 meses</option><option value="ano" ${f.period === 'ano' ? 'selected' : ''}>Ano atual</option><option value="custom" ${f.period === 'custom' ? 'selected' : ''}>Personalizado</option></select>
@@ -688,7 +688,7 @@
       const ci = insts.filter((i) => i.clientId === c.id);
       return { c, billed: ci.reduce((a, i) => a + i.amount, 0), recv: pays.filter((p) => p.clientId === c.id).reduce((a, p) => a + p.amount, 0), open: ci.reduce((a, i) => a + remaining(i), 0), overdue: ci.filter((i) => status(i) === 'vencido').reduce((a, i) => a + remaining(i), 0), n: ci.length };
     }).filter((x) => x.n || x.recv).sort((a, b) => b.billed - a.billed);
-    reportCache = { from, to, byClient };
+    reportCache = { from, to, byClient, billed, recv, nInsts: insts.length, nPays: pays.length, dueOpen, dueBilled, onTime, paidCount, months, exp, rec, byM, methodColors, aging };
     return `
       <p class="muted" style="margin:-4px 0 14px">Período: <b>${fdate(from)}</b> a <b>${fdate(to)}</b>${f.client ? ` · Cliente: <b>${esc(client(f.client).name)}</b>` : ''}</p>
       <div class="grid kpis">
@@ -711,6 +711,163 @@
         </tbody></table></div>` : empty('Sem dados para o período.')}</div>`;
   };
   let reportCache = null;
+
+  /* PDF do relatório: jsPDF carregado só no primeiro uso, documento desenhado direto (A4 retrato) */
+  let pdfLib = null;
+  function loadPdfLib() {
+    if (window.jspdf) return Promise.resolve(window.jspdf.jsPDF);
+    if (!pdfLib) {
+      pdfLib = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'js/vendor/jspdf.umd.min.js';
+        s.onload = () => resolve(window.jspdf.jsPDF);
+        s.onerror = () => { pdfLib = null; reject(new Error('falha ao carregar')); };
+        document.head.appendChild(s);
+      });
+    }
+    return pdfLib;
+  }
+  async function exportReportPDF(btn) {
+    const r = reportCache;
+    if (!r) return;
+    btn.disabled = true;
+    try {
+      const JsPDF = await loadPdfLib();
+      const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210, M = 14, CW = W - 2 * M, BOTTOM = 282;
+      const GREEN = [27, 127, 55], DARK = [14, 59, 46], TEXT = [23, 32, 27], MUTED = [100, 107, 99], LINE = [230, 226, 212], SOFT = [247, 245, 236];
+      const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+      const txt = (s) => String(s).replace(/ /g, ' ');
+      const cid = ui.relatorios.client;
+      const cl = cid ? client(cid) : null;
+      let y = 0;
+      const footer = () => {
+        const n = doc.getNumberOfPages();
+        for (let p = 1; p <= n; p++) {
+          doc.setPage(p); doc.setFontSize(8); doc.setTextColor(...MUTED);
+          doc.text(txt(`${st.company.name} · Relatório de demonstração com dados fictícios · gerado em ${fdate(TODAY)}`), M, 291);
+          doc.text(`Página ${p} de ${n}`, W - M, 291, { align: 'right' });
+        }
+      };
+      const ensure = (h) => { if (y + h > BOTTOM) { doc.addPage(); y = 16; return true; } return false; };
+      const section = (title) => { ensure(14); doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); doc.setTextColor(...DARK); doc.text(title, M, y); y += 2.5; doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, y, W - M, y); y += 6; };
+
+      // Cabeçalho
+      doc.setFillColor(...DARK); doc.rect(0, 0, W, 30, 'F');
+      doc.setFillColor(...GREEN); doc.rect(0, 30, W, 1.6, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
+      doc.text('Relatório financeiro', M, 14);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+      doc.text(txt(`Período: ${fdate(r.from)} a ${fdate(r.to)}  ·  ${cl ? cl.name : 'Todos os clientes'}`), M, 22);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(txt(st.company.name), W - M, 13, { align: 'right' });
+      doc.setFillColor(253, 230, 138); doc.roundedRect(W - M - 52, 18, 52, 6.5, 1.5, 1.5, 'F');
+      doc.setTextColor(59, 35, 0); doc.setFontSize(7.5); doc.text('DEMONSTRAÇÃO · dados fictícios', W - M - 26, 22.4, { align: 'center' });
+      y = 42;
+
+      // Indicadores
+      const kpis = [
+        ['Faturado no período', brl(r.billed), `${r.nInsts} parcelas no período`, GREEN],
+        ['Recebido no período', brl(r.recv), `${r.nPays} pagamentos`, [18, 161, 80]],
+        ['Inadimplência', pct(r.dueBilled ? (r.dueOpen / r.dueBilled) * 100 : 0), `${brl(r.dueOpen)} vencido em aberto`, [220, 38, 38]],
+        ['Pagamentos em dia', pct(r.paidCount ? (r.onTime / r.paidCount) * 100 : 0), `${r.onTime} de ${r.paidCount} parcelas pagas`, [2, 132, 199]]
+      ];
+      const kw = (CW - 3 * 4) / 4;
+      kpis.forEach(([label, val, sub, color], k) => {
+        const x = M + k * (kw + 4);
+        doc.setFillColor(...SOFT); doc.setDrawColor(...LINE); doc.roundedRect(x, y, kw, 24, 2, 2, 'FD');
+        doc.setFillColor(...color); doc.rect(x, y + 3, 1.2, 18, 'F');
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...MUTED); doc.text(label, x + 4, y + 6.5);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...TEXT); doc.text(txt(val), x + 4, y + 14);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...MUTED); doc.text(doc.splitTextToSize(txt(sub), kw - 6)[0], x + 4, y + 19.5);
+      });
+      y += 33;
+
+      // Gráfico mensal
+      section('Faturado x recebido por mês');
+      const ch = 52, max = Math.max(1, ...r.exp, ...r.rec);
+      const step = Math.pow(10, Math.floor(Math.log10(max)));
+      const top = Math.ceil(max / step) * step;
+      const gx = M + 16, gw = CW - 16;
+      doc.setFontSize(7); doc.setTextColor(...MUTED); doc.setDrawColor(...LINE); doc.setLineWidth(0.2);
+      for (let g = 0; g <= 4; g++) {
+        const gy = y + ch - (ch * g) / 4;
+        doc.line(gx, gy, gx + gw, gy);
+        doc.text(txt(brlShort((top * g) / 4)), gx - 2, gy + 1, { align: 'right' });
+      }
+      const n = r.months.length || 1, slot = gw / n, bw = Math.min(9, slot * 0.32);
+      r.months.forEach((m, k) => {
+        const cx = gx + slot * k + slot / 2;
+        [[r.exp[k], [185, 220, 194]], [r.rec[k], [18, 161, 80]]].forEach(([v, c], j) => {
+          const h = (v / top) * ch;
+          doc.setFillColor(...c); doc.rect(cx - bw - 0.5 + j * (bw + 1), y + ch - h, bw, h, 'F');
+        });
+        doc.setTextColor(...MUTED); doc.text(monthLabel(m), cx, y + ch + 4.5, { align: 'center' });
+      });
+      y += ch + 8;
+      doc.setFillColor(185, 220, 194); doc.rect(gx, y - 2.6, 3, 3, 'F'); doc.setTextColor(...TEXT); doc.text('Faturado', gx + 4.5, y);
+      doc.setFillColor(18, 161, 80); doc.rect(gx + 22, y - 2.6, 3, 3, 'F'); doc.text('Recebido', gx + 26.5, y);
+      y += 9;
+
+      // Barras horizontais (forma de pagamento e aging)
+      const hbarsPdf = (rows) => {
+        const mx = Math.max(1, ...rows.map((x) => x.value));
+        rows.forEach((x) => {
+          ensure(8);
+          doc.setFontSize(8.5); doc.setTextColor(...TEXT); doc.setFont('helvetica', 'normal'); doc.text(x.label, M, y + 3);
+          doc.setFillColor(...SOFT); doc.rect(M + 40, y, CW - 80, 3.6, 'F');
+          doc.setFillColor(...hex(x.color || '#1b7f37')); doc.rect(M + 40, y, ((CW - 80) * x.value) / mx, 3.6, 'F');
+          doc.setFont('helvetica', 'bold'); doc.text(txt(brl(x.value)), W - M, y + 3, { align: 'right' });
+          y += 7;
+        });
+        y += 4;
+      };
+      section('Recebido por forma de pagamento');
+      const methods = Object.entries(r.byM).sort((a, b) => b[1] - a[1]).map(([l, v]) => ({ label: l, value: v, color: r.methodColors[l] }));
+      if (methods.length) hbarsPdf(methods); else { doc.setFontSize(9); doc.setTextColor(...MUTED); doc.text('Sem pagamentos no período.', M, y); y += 8; }
+      section('Aging da carteira vencida (posição de hoje)');
+      hbarsPdf(r.aging);
+
+      // Tabela por cliente
+      const cols = [['Cliente', M + 2, 'left'], ['Faturado', M + 88, 'right'], ['Recebido', M + 114, 'right'], ['Em aberto', M + 140, 'right'], ['Vencido', M + 164, 'right']];
+      const head = () => {
+        doc.setFillColor(...DARK); doc.rect(M, y, CW, 7, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+        cols.forEach(([t, x, al]) => doc.text(t, x, y + 4.7, { align: al }));
+        doc.text('Receb.', W - M - 2, y + 4.7, { align: 'right' });
+        y += 7;
+      };
+      ensure(45);
+      section(`Desempenho por cliente (${r.byClient.length})`);
+      if (!r.byClient.length) { doc.setFontSize(9); doc.setTextColor(...MUTED); doc.text('Sem dados para o período.', M, y); }
+      else {
+        head();
+        r.byClient.forEach((x, k) => {
+          if (ensure(6.5)) head();
+          if (k % 2) { doc.setFillColor(...SOFT); doc.rect(M, y, CW, 6.5, 'F'); }
+          const rate = x.billed ? Math.min(100, ((x.billed - x.open) / x.billed) * 100) : 100;
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...TEXT);
+          doc.text(doc.splitTextToSize(txt(x.c.name), 62)[0], M + 2, y + 4.4);
+          doc.text(txt(brl(x.billed)), M + 88, y + 4.4, { align: 'right' });
+          doc.setTextColor(18, 161, 80); doc.text(txt(brl(x.recv)), M + 114, y + 4.4, { align: 'right' });
+          doc.setTextColor(...TEXT); doc.text(txt(brl(x.open)), M + 140, y + 4.4, { align: 'right' });
+          if (x.overdue) { doc.setFont('helvetica', 'bold'); doc.setTextColor(220, 38, 38); }
+          doc.text(txt(brl(x.overdue)), M + 164, y + 4.4, { align: 'right' });
+          doc.setFont('helvetica', 'bold'); doc.setTextColor(...(rate < 60 ? [220, 38, 38] : rate < 90 ? [217, 119, 6] : [18, 161, 80]));
+          doc.text(`${Math.round(rate)}%`, W - M - 2, y + 4.4, { align: 'right' });
+          y += 6.5;
+        });
+        doc.setDrawColor(...LINE); doc.line(M, y, W - M, y);
+      }
+      footer();
+      doc.save(`relatorio-${r.from}-a-${r.to}-demo.pdf`);
+      toast('PDF do relatório gerado');
+    } catch (e) {
+      toast('Não foi possível gerar o PDF. Use Imprimir → Salvar como PDF.', 'warn');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
 
   /* ---------------- Modais / formulários ---------------- */
   function clientModal(id) {
@@ -930,6 +1087,7 @@
     'wa-open': (el) => { ui.whatsapp.client = el.dataset.client; render(); },
     receipt: (el) => receiptModal({ payId: el.dataset.pay, instId: el.dataset.inst }),
     print: () => window.print(),
+    'export-pdf': (el) => exportReportPDF(el),
     page: (el) => { ui[el.dataset.key].page = Number(el.dataset.to); refreshList(); $('#view').scrollIntoView({ block: 'start' }); },
     chip: (el) => { const [p, k] = el.dataset.key.split('.'); ui[p][k] = el.dataset.val; ui[p].page = 1; render(); },
     'client-tab': (el) => { ui.cliente.tab = el.dataset.tab; render(); },
