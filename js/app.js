@@ -1191,6 +1191,7 @@
     if (f.dataset.submit && submit[f.dataset.submit]) { e.preventDefault(); submit[f.dataset.submit](f); }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); document.body.classList.remove('menu-open'); } });
+  $('#globalSearchInput').addEventListener('blur', (e) => { e.target.value = ''; });
   $('#globalSearchInput').addEventListener('input', (e) => {
     ui.clientes.q = e.target.value; ui.clientes.page = 1;
     if (currentRoute === 'clientes') { const inp = $('[data-filter="clientes.q"]'); if (inp) inp.value = e.target.value; refreshList(); }
@@ -1232,7 +1233,13 @@
     window.scrollTo(0, scroll);
     document.title = `${(NAV.find((n) => n.id === (route === 'cliente' ? 'clientes' : route)) || {}).label || 'Dashboard'} · Recebe Fácil (Demonstração)`;
   }
-  window.addEventListener('hashchange', () => { closeModal(); render(); });
+  window.addEventListener('hashchange', () => {
+    closeModal();
+    // a busca não acompanha a navegação: zera o campo do topo e, fora de Clientes, o filtro de busca
+    $('#globalSearchInput').value = '';
+    if (parse()[0] !== 'clientes') ui.clientes.q = '';
+    render();
+  });
 
   try { const t = localStorage.getItem('recebe-facil-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) { /* ignora */ }
   save();
