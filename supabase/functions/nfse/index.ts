@@ -58,8 +58,11 @@ Deno.serve(async (req) => {
   // 1. autenticação e autorização
   const { data: userData, error: userError } = await userClient.auth.getUser();
   if (userError || !userData.user) return json(401, { status: 'erro', message: 'Sessão inválida' });
-  const { data: allowed } = await userClient.rpc('has_role', { roles: ['admin', 'fiscal'] });
-  if (allowed !== true) return json(403, { status: 'erro', message: 'Perfil sem permissão para operações fiscais' });
+  // o perfil é lido com o token do próprio usuário (RLS: cada um vê o seu)
+  const { data: profile } = await userClient.from('profiles').select('role, active').eq('id', userData.user.id).maybeSingle();
+  if (!profile?.active || !['admin', 'fiscal'].includes(profile.role)) {
+    return json(403, { status: 'erro', message: 'Perfil sem permissão para operações fiscais' });
+  }
 
   // 2. validação da entrada
   let body: Body;

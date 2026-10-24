@@ -95,15 +95,43 @@ qualquer hospedagem estática e em `financeiro.associapec.com.br` sem reconfigur
 1. Adicionar a URL em *Supabase → Authentication → URL Configuration* (já prevista em `supabase/config.toml`).
 2. Definir o secret `ALLOWED_ORIGIN=https://financeiro.associapec.com.br` na Edge Function.
 
-## Implantação (requer autorização — NÃO executado)
+## Implantação
 
-```bash
-# 1. projeto Supabase autorizado (plano gratuito) — nenhum foi criado/alterado
-supabase link --project-ref <ref>
-supabase db push                      # aplica supabase/migrations
-psql "$DB_URL" -f supabase/seed.sql   # opcional: categorias e serviços de exemplo
-supabase functions deploy nfse
-# 2. primeiro administrador (SQL Editor), após convidar o usuário pelo painel:
-#    update public.profiles set role = 'admin' where email = 'pessoa@associapec...';
-# 3. frontend: app/.env.local com VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY; npm run build
-```
+### Situação atual (24/10/2026)
+
+| Item | Situação |
+| --- | --- |
+| Projeto Supabase | `cpepbgyycnbbfvtbzkgk` (org. `financeiro-associapec`) — `https://cpepbgyycnbbfvtbzkgk.supabase.co` |
+| Migração `fundacao` | **Aplicada** (versão `20261024175942`) |
+| Verificador de segurança | 0 alertas |
+| Verificador de desempenho | apenas "índice não usado" (INFO), esperado com o banco vazio |
+| Dados | nenhum dado pessoal; só as 2 linhas vazias de `fiscal_issuer` |
+| Usuários | nenhum (o primeiro deve ser convidado pelo painel) |
+| Edge Function `nfse` | **não publicada** |
+| `seed.sql` | **não aplicado** (opcional) |
+
+### Modelo de permissões do projeto
+
+Neste projeto, tabelas e funções criadas pelo `postgres` **não** recebem privilégios automáticos
+para `anon`/`authenticated` (só TRUNCATE/REFERENCES/TRIGGER, que a migração revoga). Por isso:
+
+- a migração concede **explicitamente** apenas as operações de cada tabela (ver seção "Permissões
+  explícitas" no SQL); `anon` não recebe nenhum privilégio;
+- toda migração futura que criar tabela **deve** incluir seus `grant`s e políticas RLS;
+- funções internas ficam no schema `private` (fora da Data API). Só `private.has_role` e
+  `private.current_app_role` são executáveis por `authenticated` (as políticas RLS precisam delas);
+  funções de trigger não precisam de `EXECUTE` para disparar;
+- `public.rls_auto_enable()` (do Supabase) segue ativando RLS em tabelas novas via event trigger
+  `ensure_rls`, mas não é mais chamável pela API.
+
+O teste local (`supabase/tests/supabase_stub.sql`) reproduz esse modelo; não adicione grants no stub.
+
+### Próximos passos para ligar o app
+
+1. Painel → *Authentication → Sign In / Providers*: desativar cadastro público (*Allow new users to sign up*).
+2. Painel → *Authentication → URL Configuration*: Site URL do ambiente de homologação.
+3. Convidar o primeiro usuário (*Authentication → Users → Invite*). Ele entra como **Consulta**.
+4. Promover a administrador (SQL Editor, com autorização):
+   `update public.profiles set role = 'admin' where email = '<e-mail>';`
+5. `app/.env.local` com `VITE_SUPABASE_URL` e a chave **publishable/anon** do projeto; `npm run dev`.
+6. Edge Function `nfse` e secrets: somente na Etapa 3.

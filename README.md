@@ -10,7 +10,7 @@ preparada para emissão de NFS-e em Campo Grande/MS. **Etapa 1 (fundação) em h
 | Backend fiscal | [`supabase/functions/nfse`](supabase/functions/nfse) — integração **desabilitada** até a Etapa 3 |
 | Documentação | [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) · [`docs/ETAPA-1.md`](docs/ETAPA-1.md) |
 
-Nenhuma migração foi aplicada em Supabase remoto e nenhuma nota fiscal é emitida.
+Banco implantado no projeto Supabase `cpepbgyycnbbfvtbzkgk` (migração `fundacao`, 24/10/2026). Nenhuma nota fiscal é emitida.
 
 ---
 

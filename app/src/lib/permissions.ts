@@ -2,7 +2,7 @@ import type { Role, TableName } from './types';
 
 /**
  * Matriz de permissões. DEVE refletir as políticas RLS de
- * supabase/migrations/20261024000001_fundacao.sql — o banco é quem garante;
+ * supabase/migrations/20261024175942_fundacao.sql — o banco é quem garante;
  * aqui serve para esconder ações na interface e para o modo demonstração.
  */
 type Op = 'read' | 'write' | 'delete';

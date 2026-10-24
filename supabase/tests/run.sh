@@ -15,6 +15,5 @@ if [ "$(id -u)" = 0 ]; then chown -R postgres "$TMP"; RUNAS=(runuser -u postgres
 PSQL=("${RUNAS[@]}" psql -h "$TMP" -p "$PORT" -U postgres -d postgres -v ON_ERROR_STOP=1 -q)
 "${PSQL[@]}" -f "$DIR/tests/supabase_stub.sql"
 for f in "$DIR"/migrations/*.sql; do echo "migração: $(basename "$f")"; "${PSQL[@]}" -f "$f"; done
-"${PSQL[@]}" -f "$DIR/tests/grants.sql"
 "${PSQL[@]}" -f "$DIR/seed.sql"
 "${PSQL[@]}" -f "$DIR/tests/rls_test.sql"

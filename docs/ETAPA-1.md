@@ -9,7 +9,7 @@ Branch: `claude/adoring-allen-3sgfbd` · Data: 24/10/2026
 | Análise do protótipo | Protótipo estático (HTML/JS, dados no navegador) preservado na raiz. Reaproveitados: design system, padrões de tabela/modal/toast, gráficos SVG, lógica de status/vencimentos. |
 | Arquitetura | React 18 + TypeScript + Vite em `app/`; Supabase (Postgres/Auth/Storage/Edge Functions). Ver `ARQUITETURA.md`. |
 | Autenticação e perfis | Supabase Auth (e-mail/senha, recuperação de senha, sem cadastro público); 4 perfis com RLS. Modo demonstração com seleção de perfil. |
-| Modelo de dados | `supabase/migrations/20261024000001_fundacao.sql` — 14 tabelas, RLS em todas, triggers de auditoria, cálculo de pagamentos e travas fiscais; 2 buckets privados. |
+| Modelo de dados | `supabase/migrations/20261024175942_fundacao.sql` — 14 tabelas, RLS em todas, triggers de auditoria, cálculo de pagamentos e travas fiscais; 2 buckets privados. |
 | Layout principal | Menu lateral, topo com indicador de ambiente, tema claro/escuro, navegação inferior no celular, tabelas que viram cartões no celular. |
 | Painel | Receitas, despesas, saldo, vencidos, inadimplentes, a receber/pagar, próximos 7 dias, gráfico de 6 meses, filtros por período. |
 | Clientes e fornecedores | PF/PJ, validação de CPF/CNPJ, bloqueio de duplicidade, contatos, endereço, dados fiscais, ativar/desativar, busca e filtros, saldos por cadastro. |
@@ -35,11 +35,30 @@ Branch: `claude/adoring-allen-3sgfbd` · Data: 24/10/2026
 | Unitários + integração da interface (Vitest/jsdom) | `cd app && npm test` | **28/28 aprovados** |
 | Tipagem do frontend | `cd app && npm run typecheck` | sem erros |
 | Build de produção | `cd app && npm run build` | ok (≈87 kB JS gzip) |
-| Banco: migração + RLS + triggers (PostgreSQL 16 local) | `supabase/tests/run.sh` | **32 verificações aprovadas** |
+| Banco: migração + permissões reais + RLS + triggers + isolamento (PostgreSQL 16 local) | `supabase/tests/run.sh` | **50 verificações aprovadas** |
 | Edge Function | `deno check supabase/functions/nfse/index.ts` | sem erros |
 | Fumaça no navegador (Chromium, desktop 1366px e celular 390px) | Playwright | 11 telas por viewport, recebimento parcial e preparação de DPS executados, **0 erros de console** |
 
-O banco foi testado **somente localmente**; nenhuma migração foi aplicada em Supabase remoto.
+### Implantação no Supabase (24/10/2026)
+
+Migração `fundacao` aplicada no projeto `cpepbgyycnbbfvtbzkgk` após a aprovação dos testes locais.
+
+| Verificação no banco real | Resultado |
+| --- | --- |
+| 14 tabelas com RLS, 43 políticas em `public`, 3 em `storage` | ok |
+| Buckets `comprovantes` e `fiscal-xml` | privados, com limite de tamanho e tipos permitidos |
+| Privilégios de `anon` nas tabelas | 0 |
+| TRUNCATE/REFERENCES/TRIGGER para `authenticated` | 0 |
+| Funções privadas executáveis por `authenticated` | apenas `has_role`, `current_app_role` |
+| `rls_auto_enable` chamável pela API | não (event trigger continua ativo) |
+| Sessão autenticada sem perfil | vê 0 linhas (inclusive 0 de 2 em `fiscal_issuer`) |
+| Sessão anônima | `permission denied` |
+| Verificador de segurança | 0 alertas |
+| Verificador de desempenho | só "índice não usado" (INFO), esperado sem dados |
+
+Ajustes feitos antes da implantação: permissões explícitas, schema `private`, correção dos privilégios
+de `rls_auto_enable`, `(select ...)` nas políticas, índices nas chaves estrangeiras, política única de
+leitura no storage, `search_path` fixo em todas as funções, Edge Function lendo o perfil em vez de RPC.
 
 ## Pendências que dependem da ASSOCIAPEC / contabilidade
 
@@ -51,7 +70,7 @@ O banco foi testado **somente localmente**; nenhuma migração foi aplicada em S
 2. Certificado digital: tipo (A1/A3), validade e titularidade. **A3 normalmente não funciona em servidor em nuvem.**
 3. Códigos `cTribMun` (tabela SEFAZ, 209 páginas) por serviço prestado, validados pela contabilidade.
 4. Dados cadastrais fiscais da ASSOCIAPEC (CNPJ, inscrição municipal, regime, série da DPS).
-5. Autorização para criar/usar o projeto Supabase (plano gratuito) e aplicar a migração.
+5. ~~Projeto Supabase e migração~~ — concluído. Falta: desativar cadastro público, convidar o primeiro usuário e autorizar sua promoção a administrador.
 6. Definição de domínio/hospedagem (arquitetura já compatível com `financeiro.associapec.com.br`).
 
 ## Roteiro de homologação da Etapa 1

@@ -24,6 +24,49 @@ begin
   raise notice 'OK %', label;
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- Permissões explícitas (modelo atual do Supabase)
+-- ---------------------------------------------------------------------------
+select pg_temp.expect(not exists (
+  select 1 from pg_tables t, unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p
+  where t.schemaname = 'public' and has_table_privilege('anon', format('public.%I', t.tablename), p)
+), 'anon sem nenhum privilégio nas tabelas do sistema');
+select pg_temp.expect(not exists (
+  select 1 from pg_tables t, unnest(array['TRUNCATE','REFERENCES','TRIGGER']) p
+  where t.schemaname = 'public' and has_table_privilege('authenticated', format('public.%I', t.tablename), p)
+), 'authenticated sem TRUNCATE/REFERENCES/TRIGGER');
+select pg_temp.expect(not has_table_privilege('authenticated', 'public.audit_log', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.nfse_requests', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.profiles', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.profiles', 'DELETE')
+  and not has_table_privilege('authenticated', 'public.fiscal_issuer', 'DELETE'), 'authenticated só com as operações necessárias');
+select pg_temp.expect(has_table_privilege('service_role', 'public.nfse_requests', 'INSERT'), 'service_role grava histórico fiscal');
+select pg_temp.expect((select bool_and(c.relrowsecurity) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'r'), 'RLS ativo em todas as tabelas');
+select pg_temp.expect((select count(*) from pg_tables where schemaname = 'public') = 14, '14 tabelas criadas');
+select pg_temp.expect(not has_schema_privilege('anon', 'private', 'USAGE'), 'anon sem acesso ao schema privado');
+select pg_temp.expect(not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private' and has_function_privilege('anon', p.oid, 'EXECUTE')
+), 'anon não executa funções privadas');
+select pg_temp.expect(not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private' and p.proname not in ('has_role', 'current_app_role')
+    and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+), 'authenticated executa apenas has_role/current_app_role');
+select pg_temp.expect(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.prokind = 'f' and p.proname <> 'rls_auto_enable'), 'nenhuma função do sistema exposta em public');
+select pg_temp.expect(not has_function_privilege('anon', 'public.rls_auto_enable()', 'EXECUTE')
+  and not has_function_privilege('authenticated', 'public.rls_auto_enable()', 'EXECUTE'), 'rls_auto_enable não chamável pela API');
+create table public.tmp_rls_check (id int);
+select pg_temp.expect((select relrowsecurity from pg_class where oid = 'public.tmp_rls_check'::regclass), 'rls_auto_enable continua ativando RLS em tabelas novas');
+drop table public.tmp_rls_check;
+
+set role anon;
+select pg_temp.expect_error($$select count(*) from public.parties$$, 'anon ler cadastros');
+select pg_temp.expect_error($$select private.has_role('admin')$$, 'anon chamar função privada');
+reset role;
+
 -- usuários (o trigger cria os perfis como "consulta")
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'admin@demo'),
@@ -107,5 +150,18 @@ select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) valu
 reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1');
 select pg_temp.expect_error($$insert into storage.objects (bucket_id, name) values ('fiscal-xml', 'homologacao/x.xml')$$, 'usuário gravar XML fiscal');
+reset role;
+
+-- isolamento: usuário desativado e usuário sem perfil não veem nada
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000d1', 'inativo@demo');
+update profiles set active = false where email = 'inativo@demo';
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect((select count(*) from parties) = 0 and (select count(*) from receivables) = 0
+  and (select count(*) from categories) = 0, 'usuário desativado não vê dados');
+select pg_temp.expect_error($$insert into categories (name, type) values ('x', 'receita')$$, 'usuário desativado inserir');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000ee');
+select pg_temp.expect((select count(*) from parties) = 0 and (select count(*) from profiles) = 0, 'sessão sem perfil não vê dados');
+select pg_temp.expect_error($$truncate public.parties cascade$$, 'authenticated executar TRUNCATE');
 reset role;
 \echo 'TODOS OS TESTES DE BANCO PASSARAM'
