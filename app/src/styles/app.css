@@ -1,0 +1,80 @@
+/* Complementos do app ASSOCIAPEC sobre o design system herdado do protótipo */
+:root { --banner: 0px; --muted-soft: color-mix(in srgb, var(--muted) 14%, transparent); }
+.with-banner { --banner: 36px; }
+@media (max-width: 900px) { .with-banner { --banner: 40px; } }
+
+.menu-open .sidebar { transform: none; }
+@media (max-width: 900px) {
+  .menu-open .scrim { display: block; position: fixed; inset: 0; background: rgba(10,14,28,.45); z-index: 35; }
+}
+
+.tone-muted { background: var(--muted-soft); color: var(--muted); }
+.callout.tone-info, .callout.tone-warning, .callout.tone-danger, .callout.tone-success { border: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+.callout > div { color: var(--text); }
+.callout code { font-size: 12px; word-break: break-all; }
+
+.field label { display: flex; flex-direction: column; gap: 6px; }
+.field label > .input, .field label > .select, .field label > textarea { color: var(--text); font-weight: 400; font-size: 14px; }
+.field.has-error .input, .field.has-error .select { border-color: var(--danger); }
+.error-text { color: var(--danger); font-size: 12px; margin-top: 4px; font-weight: 600; }
+.field .check, label.check { flex-direction: row; color: var(--text); font-weight: 500; }
+.input:disabled, .select:disabled { background: var(--surface-2); color: var(--muted); cursor: not-allowed; }
+.form-section { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 22px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.form-section:first-child { margin-top: 0; }
+.inline-field { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.input.date { width: auto; min-width: 140px; }
+.page-head .actions .select { width: auto; }
+
+.btn.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.success:hover { filter: brightness(.95); }
+.icon-btn.sm { width: 32px; height: 32px; }
+.upload-btn { cursor: pointer; }
+.pill.soft { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); font-weight: 600; }
+
+.nowrap { white-space: nowrap; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.small { font-size: 12px; }
+.grow-min { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.inline-ico { width: 13px; height: 13px; vertical-align: -2px; }
+.audit-diff { white-space: pre-wrap; word-break: break-word; max-width: 420px; color: var(--muted); }
+.list.bordered { border: 1px solid var(--border); border-radius: 12px; padding: 0; }
+.list.bordered li { padding: 10px 14px; }
+.list li > svg { color: var(--success); }
+.pager.totals { flex-wrap: wrap; }
+.confirm-body { font-size: 14.5px; line-height: 1.55; }
+code { background: var(--surface-2); border: 1px solid var(--border); padding: 1px 6px; border-radius: 6px; font-size: 12.5px; }
+
+.env-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); }
+.env-chip.demo { background: var(--warning-soft); color: var(--warning); border-color: transparent; }
+.env-chip.supabase { background: var(--info-soft); color: var(--info); border-color: transparent; }
+.env-chip svg { width: 15px; height: 15px; }
+
+.toast.error { background: #7f1d1d; }
+.toast.error svg { color: #fecaca; }
+.toast.info svg { color: #93c5fd; }
+
+.issues { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.issues li { display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border-radius: 10px; font-size: 13.5px; }
+.issues li.bloqueante { background: var(--danger-soft); color: var(--danger); }
+.issues li.aviso { background: var(--warning-soft); color: var(--warning); }
+
+.spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; margin: 0 auto; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Login */
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background:
+  radial-gradient(circle at 15% 10%, var(--primary-soft), transparent 40%), var(--bg); }
+.login-card { width: 100%; max-width: 440px; padding: 28px; }
+.login-brand { padding: 0 0 18px; }
+.login-title { font-size: 20px; }
+.role-list { display: flex; flex-direction: column; gap: 8px; }
+.role-option { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; }
+.role-option:hover { border-color: var(--primary); background: var(--primary-soft); }
+.role-option small { color: var(--muted); }
+
+@media (max-width: 640px) {
+  .page-head .actions .select, .page-head .actions .input { flex: 1; }
+  .inline-field { flex: 1; }
+  .inline-field .input.date { flex: 1; min-width: 0; }
+  .modal-foot .spacer { display: none; }
+}

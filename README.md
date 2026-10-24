@@ -1,4 +1,24 @@
-# Recebe Fácil — Gestão financeira e cobrança (DEMONSTRAÇÃO)
+# ASSOCIAPEC — Sistema de Gestão Financeira
+
+Aplicação web (React + TypeScript + Supabase) para gestão financeira da ASSOCIAPEC, com estrutura
+preparada para emissão de NFS-e em Campo Grande/MS. **Etapa 1 (fundação) em homologação.**
+
+| | |
+| --- | --- |
+| Aplicação | [`app/`](app) — `cd app && npm install && npm run dev` (sem Supabase configurado abre em **modo demonstração**) |
+| Banco de dados | [`supabase/migrations`](supabase/migrations) — RLS, auditoria, storage privado; testes em `supabase/tests/run.sh` |
+| Backend fiscal | [`supabase/functions/nfse`](supabase/functions/nfse) — integração **desabilitada** até a Etapa 3 |
+| Documentação | [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) · [`docs/ETAPA-1.md`](docs/ETAPA-1.md) |
+
+Nenhuma migração foi aplicada em Supabase remoto e nenhuma nota fiscal é emitida.
+
+---
+
+## Protótipo original (preservado)
+
+Os arquivos da raiz (`index.html`, `css/`, `js/`) são o protótipo anterior, mantido sem alterações.
+
+### Recebe Fácil — Gestão financeira e cobrança (DEMONSTRAÇÃO)
 
 Protótipo web **navegável** de um sistema de gestão financeira e cobrança de clientes, criado para
 apresentação e validação com potenciais clientes.

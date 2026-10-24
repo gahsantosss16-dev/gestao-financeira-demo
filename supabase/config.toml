@@ -1,0 +1,20 @@
+# Configuração do Supabase CLI para desenvolvimento LOCAL (`supabase start`).
+# Nenhum comando deste repositório altera o projeto remoto.
+project_id = "associapec-financeiro"
+
+[api]
+schemas = ["public"]
+
+[db]
+major_version = 15
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["https://financeiro.associapec.com.br"]
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+
+[functions.nfse]
+verify_jwt = true
