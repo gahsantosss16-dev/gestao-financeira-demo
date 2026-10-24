@@ -14,6 +14,7 @@ import { FiscalNotes, FiscalSettings } from './pages/Fiscal';
 import { Login } from './pages/Login';
 import { NextStage } from './pages/NextStage';
 import { Parties } from './pages/Parties';
+import { SetPassword } from './pages/SetPassword';
 
 function RequireRole({ roles, children }: { roles: Role[]; children: ReactNode }) {
   const { profile } = useAuth();
@@ -21,9 +22,11 @@ function RequireRole({ roles, children }: { roles: Role[]; children: ReactNode }
 }
 
 function Shell() {
-  const { profile, loading } = useAuth();
+  const { profile, loading, passwordSetupRequired } = useAuth();
   if (loading) return <Loading />;
   if (!profile) return <Login />;
+  // convite ou recuperação de senha: nada do sistema fica acessível antes de definir a senha
+  if (passwordSetupRequired) return <SetPassword />;
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -39,6 +42,7 @@ function Shell() {
         <Route path="importacao" element={<NextStage page="importacao" />} />
         <Route path="admin/usuarios" element={<RequireRole roles={['admin']}><Users /></RequireRole>} />
         <Route path="admin/auditoria" element={<RequireRole roles={['admin']}><Audit /></RequireRole>} />
+        <Route path="definir-senha" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

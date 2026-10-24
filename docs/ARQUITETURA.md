@@ -126,11 +126,38 @@ para `anon`/`authenticated` (só TRUNCATE/REFERENCES/TRIGGER, que a migração r
 
 O teste local (`supabase/tests/supabase_stub.sql`) reproduz esse modelo; não adicione grants no stub.
 
+### Autenticação: URLs, convite e definição de senha
+
+Os e-mails do Supabase (convite e "Esqueci minha senha") levam a
+`https://cpepbgyycnbbfvtbzkgk.supabase.co/auth/v1/verify?...`, que confirma o token **uma única vez**
+e redireciona para a **Site URL** (convites enviados pelo painel) ou para o `redirect_to` informado
+pelo app (recuperação de senha), com os tokens no fragmento: `#access_token=...&type=invite`.
+
+| Configuração (Authentication → URL Configuration) | Desenvolvimento | Hospedagem futura |
+| --- | --- | --- |
+| Site URL | `http://localhost:5173` | `https://financeiro.associapec.com.br` |
+| Redirect URLs | `http://localhost:5173/**`, `http://127.0.0.1:5173/**`, `http://localhost:4173/**` | acrescentar `https://financeiro.associapec.com.br/**` |
+
+No app (`app/src/auth/authRedirect.ts`):
+- o fragmento é lido **antes** do roteador (o app usa rotas por hash) e removido da barra de endereço;
+- `type=invite` ou `type=recovery` → sessão criada e tela **Defina sua senha** obrigatória
+  (mín. 8 caracteres, letras e números) antes de qualquer outra tela; o nome informado vai para `profiles`;
+- `error_code=otp_expired` (link já usado ou expirado) → mensagem na tela de login orientando
+  "Esqueci minha senha";
+- `detectSessionInUrl` do supabase-js fica desativado para não competir com esse tratamento;
+- "Esqueci minha senha" usa como retorno o endereço atual do app (`appBaseUrl()`), então funciona em
+  localhost, em subpasta ou no domínio definitivo sem alterar código — basta a URL estar na lista.
+
+O link do convite é de **uso único**: se o navegador abrir o link e cair numa porta sem servidor,
+o token já foi consumido. Por isso o app precisa estar rodando (`npm run dev`) **antes** de clicar no link.
+Para quem já aceitou o convite (e-mail confirmado), o caminho é a recuperação de senha, não um novo convite.
+
 ### Próximos passos para ligar o app
 
 1. Painel → *Authentication → Sign In / Providers*: desativar cadastro público (*Allow new users to sign up*).
-2. Painel → *Authentication → URL Configuration*: Site URL do ambiente de homologação.
+2. Painel → *Authentication → URL Configuration*: valores da tabela acima.
 3. Convidar o primeiro usuário (*Authentication → Users → Invite*). Ele entra como **Consulta**.
+   (Feito em 24/10/2026: `financeiroassociapec@gmail.com` — falta definir a senha via recuperação.)
 4. Promover a administrador (SQL Editor, com autorização):
    `update public.profiles set role = 'admin' where email = '<e-mail>';`
 5. `app/.env.local` com `VITE_SUPABASE_URL` e a chave **publishable/anon** do projeto; `npm run dev`.

@@ -78,3 +78,4 @@ code { background: var(--surface-2); border: 1px solid var(--border); padding: 1
   .inline-field .input.date { flex: 1; min-width: 0; }
   .modal-foot .spacer { display: none; }
 }
+.issues li.ok { background: var(--success-soft); color: var(--success); }

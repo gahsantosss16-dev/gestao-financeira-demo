@@ -9,8 +9,14 @@ schemas = ["public"]
 major_version = 15
 
 [auth]
+# Deve coincidir com a configuração do projeto remoto (Authentication → URL Configuration).
 site_url = "http://localhost:5173"
-additional_redirect_urls = ["https://financeiro.associapec.com.br"]
+additional_redirect_urls = [
+  "http://localhost:5173/**",
+  "http://127.0.0.1:5173/**",
+  "http://localhost:4173/**",
+  # quando o domínio for confirmado: "https://financeiro.associapec.com.br/**"
+]
 enable_signup = false
 
 [auth.email]

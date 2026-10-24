@@ -25,6 +25,8 @@ Rode tudo antes de cada commit. A Edge Function pode ser checada com `deno check
 - O projeto não concede privilégios automáticos: toda tabela nova precisa de `grant` explícito
   (nunca para `anon`), RLS e políticas usando `(select private.has_role(...))`. Funções internas
   vão no schema `private`. O stub de teste reproduz isso — não adicione grants nele.
+- Links de e-mail do Auth são tratados em `app/src/auth/authRedirect.ts` (antes do HashRouter); mantenha
+  `detectSessionInUrl: false`. Site URL de desenvolvimento: `http://localhost:5173` (porta fixa no Vite).
 - Não criar/promover usuários, não importar dados pessoais reais e não escrever no banco sem autorização.
 
 ## Regras fiscais

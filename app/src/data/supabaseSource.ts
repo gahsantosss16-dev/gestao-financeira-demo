@@ -6,7 +6,11 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export const supabaseConfigured = !!(url && anonKey);
-export const supabase: SupabaseClient | null = supabaseConfigured ? createClient(url!, anonKey!) : null;
+// detectSessionInUrl desativado: o retorno dos links de e-mail é tratado em auth/authRedirect.ts,
+// pois o app usa rotas por hash e os tokens também chegam no fragmento da URL.
+export const supabase: SupabaseClient | null = supabaseConfigured
+  ? createClient(url!, anonKey!, { auth: { flowType: 'implicit', detectSessionInUrl: false, persistSession: true, autoRefreshToken: true } })
+  : null;
 
 const ORDER: Partial<Record<TableName, { column: string; ascending: boolean }>> = {
   audit_log: { column: 'at', ascending: false },
