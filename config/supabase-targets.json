@@ -1,0 +1,6 @@
+{
+  "$comment": "Refs (identificadores públicos) dos projetos Supabase de cada ambiente. Não são segredos. Preencher somente quando cada projeto for criado com autorização. Um ref nunca pode se repetir entre ambientes.",
+  "development": [],
+  "qa": [],
+  "production": []
+}

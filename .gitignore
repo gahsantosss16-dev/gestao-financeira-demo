@@ -1,0 +1,22 @@
+# Dependências e build
+node_modules
+dist
+dist-ssr
+*.local
+coverage
+
+# Variáveis de ambiente: nunca versionar valores reais (apenas .env.example)
+.env
+.env.*
+!.env.example
+
+# Supabase CLI
+supabase/.temp/
+supabase/.branches/
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.log

@@ -1,49 +1,60 @@
-# Recebe Fácil — Gestão financeira e cobrança (DEMONSTRAÇÃO)
+# ASSOCIAPEC Financeiro
 
-Protótipo web **navegável** de um sistema de gestão financeira e cobrança de clientes, criado para
-apresentação e validação com potenciais clientes.
+Sistema de gestão financeira da ASSOCIAPEC: contas a pagar e a receber, cadastro de
+associados/clientes/fornecedores, relatórios, perfis e permissões, com integração de
+**NFS-e de Campo Grande/MS** planejada desde a arquitetura.
 
-> ⚠️ **Demonstração.** Todos os dados são **fictícios** e gerados no próprio navegador.
-> Não há backend, banco de dados, integração com WhatsApp nem serviços pagos.
-> Nenhuma mensagem ou cobrança real é enviada.
+> Regras de desenvolvimento: [`CLAUDE.md`](CLAUDE.md). Reaproveitamento do Neuro Hub Pro
+> e do LSB: [`docs/reaproveitamento.md`](docs/reaproveitamento.md).
 
-## O que é possível demonstrar
+## Situação (Etapa 1)
 
-| Módulo | Fluxos |
+| Item | Estado |
 | --- | --- |
-| **Dashboard** | A receber (30 dias), recebido no mês, vencido, inadimplência, previsto x recebido, situação do mês, próximos vencimentos, maiores atrasos, atividade recente |
-| **Clientes** | Cadastro, edição, busca (nome, CPF/CNPJ, telefone, e-mail, cidade), filtros por situação, ficha com parcelas, pagamentos, mensagens e histórico |
-| **Contas a receber** | Nova cobrança com parcelamento (1–12x, mensal/quinzenal/semanal) e prévia das parcelas, filtros por status/período/cliente, renegociação de vencimento, exportação CSV |
-| **Recorrências** | Mensalidades/contratos, receita recorrente mensal, pausar/reativar, gerar próximas cobranças |
-| **Pagamentos** | Baixa total ou parcial, forma de pagamento, recibo (sem valor fiscal), estorno, histórico com filtros |
-| **Alertas** | Vencem hoje, próximos 3 dias, atraso até 30 dias, inadimplência (+30 dias), cobrança em lote |
-| **WhatsApp (simulação)** | Conversas em mockup de celular, modelos de mensagem com variáveis, status enviado/entregue/lido simulados, régua de cobrança automática configurável |
-| **Relatórios** | Período (mês, 3/6 meses, ano, personalizado) e cliente; faturado x recebido, formas de pagamento, aging da carteira vencida, desempenho por cliente, CSV e impressão |
+| Telas (login, painel, a pagar/receber, pessoas, relatórios, NFS-e) | Implementadas; verificadas no navegador com Supabase **simulado** |
+| Banco (migration da Etapa 1) | Testada em PostgreSQL local (PGlite). **Ainda não aplicada** em nenhum Supabase |
+| Supabase de desenvolvimento/QA/produção | **Não criados** (dependem de autorização) |
+| NFS-e | Estrutura e regras de prontidão. **Nenhuma emissão** implementada |
+| Importação de planilhas | Etapa futura |
 
-Também inclui tema claro/escuro, layout responsivo (menu lateral no computador, navegação inferior no celular)
-e o botão **Restaurar dados**, que descarta as alterações feitas durante a apresentação.
+## Stack
 
-## Executar localmente
+Vite 8 · React 19 · TypeScript · TanStack Router/Query · Tailwind CSS 4 · Supabase (Auth + Postgres + RLS) · Vitest + PGlite.
+Site estático (SPA): pode ser hospedado em qualquer servidor de arquivos (ex.: `financeiro.associapec.com.br`), sem servidor Node.
 
-É um site estático, sem dependências nem build:
+## Desenvolvimento
+
+Requer Node 22 e **npm 11** (o npm 10.9 falha ao resolver estas dependências):
 
 ```bash
-npx http-server .      # ou: python3 -m http.server
+npx -y npm@11 install
+cp .env.example .env.local   # preencher com o Supabase de DESENVOLVIMENTO
+npm run dev
 ```
 
-Abra `http://localhost:8080`. As alterações ficam salvas apenas no `localStorage` do navegador
-(e são regeneradas a cada novo dia para manter as datas atuais).
+Verificações:
 
-## Publicação
+```bash
+npm run typecheck && npm run lint && npm test
+npm run build      # bloqueia se o ambiente apontar para o Supabase errado
+```
 
-O workflow `.github/workflows/pages.yml` publica o conteúdo no **GitHub Pages** a cada push na `main`
-(em *Settings → Pages*, a origem deve estar como **GitHub Actions**).
+### Banco de dados
+
+* Migrations: `supabase/migrations/` — aplicar somente com autorização, primeiro em desenvolvimento.
+* Testes do banco: `supabase/tests/` (PostgreSQL real em memória, dados sintéticos).
+* Contas novas nascem **inativas** com perfil `consulta`; um administrador libera o acesso em `profiles`.
 
 ## Estrutura
 
 ```
-index.html        # layout (banner de demonstração, menu, topo)
-css/styles.css    # design system, tema claro/escuro e responsividade
-js/data.js        # gerador determinístico de dados fictícios
-js/app.js         # roteamento, telas, gráficos SVG, modais e simulações
+src/auth/            sessão, perfis e permissões
+src/components/      layout e componentes de interface
+src/lib/             regras puras (documento, dinheiro, datas, lançamentos, NFS-e…)
+src/routes/          telas
+src/services/        acesso ao Supabase
+supabase/            migrations e testes do banco
+scripts/             verificação de ambiente no build
+config/              refs públicos do Supabase por ambiente
+demo/                protótipo de apresentação (dados fictícios, publicado no GitHub Pages)
 ```

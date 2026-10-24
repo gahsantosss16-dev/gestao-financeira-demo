@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/* Identidade verde e creme herdada da Gestão Financeira Demo (paleta já
+   homologada), em tokens no padrão do Neuro Hub Pro (Tailwind v4 @theme). */
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-brand-dark: var(--brand-dark);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --radius-lg: 0.85rem;
+}
+
+:root {
+  --background: #f7f5ec;
+  --foreground: #17201b;
+  --card: #ffffff;
+  --muted: #fbfaf4;
+  --muted-foreground: #5d645c;
+  --border: #e6e2d4;
+  --input: #dcd7c6;
+  --ring: #1b7f37;
+  --primary: #1b7f37;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e5f3e8;
+  --brand-dark: #0e3b2e;
+  --success: #0f7a3d;
+  --success-soft: #e7f7ee;
+  --warning: #a35400;
+  --warning-soft: #fff4e0;
+  --destructive: #c21f1f;
+  --destructive-soft: #fdecec;
+  --info: #0369a1;
+  --info-soft: #e5f4fc;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0c120f;
+    --foreground: #e9eee9;
+    --card: #141c17;
+    --muted: #1a241e;
+    --muted-foreground: #a3aea6;
+    --border: #26332b;
+    --input: #33433a;
+    --ring: #34b35a;
+    --primary: #2c9a4a;
+    --primary-soft: #16301f;
+    --brand-dark: #0a2a20;
+    --success: #34d17a;
+    --success-soft: #133525;
+    --warning: #f5a524;
+    --warning-soft: #3a2a10;
+    --destructive: #f26363;
+    --destructive-soft: #3d1a1d;
+    --info: #38bdf8;
+    --info-soft: #0f2d3d;
+    color-scheme: dark;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}

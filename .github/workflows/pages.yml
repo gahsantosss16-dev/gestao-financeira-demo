@@ -1,4 +1,4 @@
-name: Publicar demonstração no GitHub Pages
+name: Publicar demonstração (demo/) no GitHub Pages
 
 on:
   push:
@@ -25,6 +25,6 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: demo
       - id: deployment
         uses: actions/deploy-pages@v4
