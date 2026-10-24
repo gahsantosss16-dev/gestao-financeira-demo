@@ -18,7 +18,7 @@ const sheet = [
 async function run(source: DemoSource, decisions = {}) {
   const [parties, registrations, receivables] = await Promise.all([source.list('parties'), source.list('party_registrations'), source.list('receivables')]);
   const rows = analyzeRows(sheet.map((c, i) => parseRow(c, headers, mapping, i + 2, OPTS)), { parties, registrations, receivables }, OPTS);
-  return commitImport(source, { fileName: 'estado-out.xlsx', sha256: 'a'.repeat(64), sheetName: 'Planilha1', mapping: { ie: 'Inscrição Estadual' }, options: OPTS, rows, decisions, categoryId: null, today: T });
+  return commitImport(source, { fileName: 'estado-out.xlsx', sha256: 'a'.repeat(64), sheetName: 'Planilha1', mapping: { ie: 'Inscrição Estadual' }, options: OPTS, rows, decisions, approvedChanges: {}, categoryId: null, today: T });
 }
 
 describe('gravação da importação', () => {

@@ -16,6 +16,8 @@ export interface CommitArgs {
   options: ImportOptions;
   rows: AnalyzedRow[];
   decisions: Record<number, RowDecision>;
+  /** campos de cadastro aprovados na conferência, por linha; sem aprovação, nada é alterado */
+  approvedChanges: Record<number, string[]>;
   categoryId: string | null;
   today: string;
   onProgress?(done: number, total: number): void;
@@ -65,11 +67,17 @@ export async function commitImport(source: DataSource, a: CommitArgs): Promise<I
         status = 'cadastro_criado';
         counts.created++;
         notes.push('Cadastro criado.');
-      } else if (Object.keys(row.updates).length && !decision) {
-        await source.update('parties', partyId, row.updates);
-        status = 'cadastro_atualizado';
-        counts.updated++;
-        notes.push(`Atualizado: ${Object.keys(row.updates).join(', ')}.`);
+      } else if (!decision) {
+        const approved = new Set(a.approvedChanges[row.rowNumber] ?? []);
+        const patch = Object.fromEntries(row.changes.filter((c) => approved.has(c.field)).map((c) => [c.field, c.to]));
+        if (Object.keys(patch).length) {
+          await source.update('parties', partyId, patch);
+          status = 'cadastro_atualizado';
+          counts.updated++;
+          notes.push(`Atualizado após conferência: ${row.changes.filter((c) => approved.has(c.field)).map((c) => c.label).join(', ')}.`);
+        } else if (row.changes.length) {
+          notes.push(`Diferenças não aprovadas mantidas: ${row.changes.map((c) => c.label).join(', ')}.`);
+        }
       }
 
       // inscrição estadual (nova propriedade do mesmo produtor ou primeira IE)

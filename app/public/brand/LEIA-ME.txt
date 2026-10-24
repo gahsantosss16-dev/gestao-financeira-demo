@@ -1,8 +1,12 @@
 Logomarca oficial da ASSOCIAPEC
 
-Coloque aqui os arquivos ORIGINAIS fornecidos pela associação:
-  associapec-logo.png               (versão com fundo claro)
-  associapec-logo-transparente.png  (versão com fundo transparente)
+Arquivos ORIGINAIS fornecidos pela associação (não editar):
+  associapec-logo.png               (versão com fundo claro, 1061x633)
+  associapec-logo-transparente.png  (versão com fundo transparente, 850x478)
 
-Não redesenhar nem alterar a marca. O sistema usa estes arquivos automaticamente
-no menu lateral, na tela de login e nos documentos PDF.
+Derivados fiéis, gerados a partir do original transparente sem alterar a arte:
+  associapec-logo-web.png / .webp   (apenas margens vazias aparadas) — login, menu, PDFs
+  associapec-simbolo.png            (símbolo recortado na faixa transparente acima do nome)
+                                    — menu recolhido e favicons (../favicon.ico etc.)
+
+Não redesenhar, não recriar e não alterar animais, letras ou cores da marca.

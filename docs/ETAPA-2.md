@@ -41,9 +41,9 @@ DPS, usuários e perfis e auditoria. Esses recursos não foram recriados.
 | **Consulta de IE** | Assistida: copia a IE e abre SINTEGRA/CCC; registra situação e data. Não há API oficial gratuita aberta (portais com CAPTCHA). Consulta automática futura: serviço oficial de consulta cadastral da SEFAZ com o certificado da ASSOCIAPEC, via backend. |
 | **Contas a receber/pagar** | Baixa total/parcial compartilhada, estorno justificado, vínculo com IE/propriedade, filtro por cliente vindo de outras telas, "Gerar cobrança". |
 | **Cobranças** | Código `COB-AAAA-NNNNN` (sequência com trava, padrão Neuro Hub Pro), uma cobrança ativa por conta, situação derivada da conta (pendente, parcial, paga, vencida, cancelada), baixa pela cobrança, observações, registro manual de contatos (prepara notificações), cancelamento justificado, **demonstrativo PDF** com identidade da ASSOCIAPEC e aviso de que não é boleto. |
-| **Importação de planilhas** | Excel (.xlsx) e CSV; mapeamento sugerido por sinônimos e lembrado por cabeçalho; prévia sem gravar (novo, encontrado, revisar, já importado, erro); associação por UF+IE → CPF/CNPJ → nome (nome sozinho sempre pede confirmação); conflitos IE×CPF pedem decisão; atualização controlada (completa vazios ou atualiza divergentes, nunca apaga); contas e cobranças sem duplicar (`import_key` única); lote + linha de origem registrados; relatório de erros em CSV; histórico. Layout oficial do Estado **ainda não homologado** (aguarda arquivo real). |
+| **Importação de planilhas** | Excel (.xlsx) e CSV; mapeamento sugerido por sinônimos e lembrado por cabeçalho; prévia sem gravar (novo, encontrado, revisar, já importado, erro); associação por UF+IE → CPF/CNPJ → nome (nome sozinho sempre pede confirmação); conflitos IE×CPF pedem decisão; diferenças com o cadastro listadas campo a campo e gravadas **somente se aprovadas** (vazio a preencher × divergente; nunca apaga; CPF/CNPJ divergente nunca é trocado); botão **Importar clientes** em Clientes e fornecedores abre o mesmo fluxo com foco cadastral (sem gerar contas por padrão); contas e cobranças sem duplicar (`import_key` única); lote + linha de origem registrados; relatório de erros em CSV; histórico. Layout oficial do Estado **ainda não homologado** (aguarda arquivo real). |
 | **Topbar / Meu Perfil** | Avatar, nome e perfil na Topbar; menu com Meu Perfil e Sair (padrão Neuro Hub Pro); identificação removida do rodapé do menu; Meu Perfil com nome editável, e-mail e perfil somente leitura, troca de senha conferindo a senha atual (padrão LSB), encerrar sessão. |
-| **Identidade visual** | Login institucional reformulado; espaço para a logomarca oficial (`app/public/brand/`) com recurso textual enquanto o arquivo não é publicado; PDFs com cabeçalho/rodapé institucionais e logo quando disponível. |
+| **Identidade visual** | Logomarca oficial (arquivos originais enviados pela associação) no login, no topo do menu, no menu recolhido (símbolo), nos PDFs (relatórios, demonstrativos, comprovantes) e no favicon (símbolo, adaptação fiel). Menu lateral recolhível com preferência lembrada. Sem recriação nem ícone genérico. |
 
 ## Reaproveitamento efetivo (somente leitura dos projetos de origem)
 
@@ -68,7 +68,7 @@ do Financeiro é React + CSS próprio; foram portadas as soluções e regras, n�
 
 | Suíte | Resultado |
 | --- | --- |
-| Vitest (unitários + integração de interface) | **149 aprovados** |
+| Vitest (unitários + integração de interface) | **154 aprovados** |
 | Banco local (migrações 1+2, RLS, permissões reais, triggers) | **92 verificações + teste de concorrência** |
 | TypeScript / build | sem erros |
 | Navegador (Chromium, 1366px e 390px) | login, painel, menu, cadastro, cobrança, importação, perfil; **0 erros de console**; persistência após fechar e reabrir |
@@ -82,9 +82,8 @@ atualizado, permissões (consulta/financeiro/admin), alteração de nome, altera
 ## Pendências reais
 
 1. **Autorizar a aplicação da migração `operacional`** no projeto `cpepbgyycnbbfvtbzkgk` (libera cobranças, importação, múltiplas IEs e estornos justificados no ambiente publicado).
-2. **Arquivos da logomarca** em `app/public/brand/` (`associapec-logo.png` e `associapec-logo-transparente.png`) — enviados na conversa, mas não acessíveis ao ambiente de desenvolvimento.
-3. **Planilha real do Estado** para homologar o mapeamento definitivo.
-4. Categorias iniciais no banco real (`seed.sql`) — aplicar com autorização.
-5. Relatórios e exportações (Excel/PDF) — próxima etapa.
-6. React Router 6 tem alerta moderado só corrigido na v7 (afeta links com destino vindo do usuário, que o app não usa).
-7. Consulta automática de IE depende do certificado digital (Etapa 3).
+2. **Planilha real do Estado** para homologar o mapeamento definitivo.
+3. Categorias iniciais no banco real (`seed.sql`) — aplicar com autorização.
+4. Relatórios e exportações (Excel/PDF) — próxima etapa.
+5. React Router 6 tem alerta moderado só corrigido na v7 (afeta links com destino vindo do usuário, que o app não usa).
+6. Consulta automática de IE depende do certificado digital (Etapa 3).

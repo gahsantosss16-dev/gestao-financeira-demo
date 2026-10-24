@@ -278,7 +278,10 @@ export function Parties() {
   return (
     <>
       <PageHead title="Clientes e fornecedores" subtitle="Produtores rurais, pessoas físicas e jurídicas — identificação por inscrição estadual e CPF/CNPJ"
-        actions={writable && <button className="btn primary" type="button" onClick={() => openParty()}><Icon name="plus" />Novo cadastro</button>} />
+        actions={writable && <>
+          <Link className="btn" to="/importacao?foco=cadastro"><Icon name="upload" />Importar clientes</Link>
+          <button className="btn primary" type="button" onClick={() => openParty()}><Icon name="plus" />Novo cadastro</button>
+        </>} />
       {parties.error && <ErrorBox message={parties.error} />}
       <div className="card">
         <div className="toolbar">

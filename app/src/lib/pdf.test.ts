@@ -29,3 +29,20 @@ describe('situação da cobrança', () => {
     expect(chargeStatus({ ...base, canceled_at: 'x' }, rec(0), '2026-10-24')).toBe('cancelada');
   });
 });
+
+describe('PDF com a logomarca oficial', () => {
+  it('incorpora o arquivo oficial no cabeçalho preservando a proporção', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const png = readFileSync(resolve(__dirname, '../../public/brand/associapec-logo-web.png'));
+    const logo = `data:image/png;base64,${png.toString('base64')}`;
+    const doc = await buildChargeStatement({
+      code: 'COB-2026-00002', statusLabel: 'Pendente', description: 'Teste', dueDate: '2026-11-10', amount: 10, paid: 0, open: 10, notes: null,
+      client: { name: 'Cliente', document: null, ie: null, address: null, email: null }, payments: [],
+    }, logo);
+    const raw = doc.output();
+    expect(raw).toMatch(/\/Subtype \/Image/);
+    // imagem embutida com as dimensões do arquivo oficial (518 × 430 px)
+    expect(raw).toMatch(/\/Width 518[\s\S]*\/Height 430/);
+  });
+});

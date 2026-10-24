@@ -43,14 +43,21 @@ Rode tudo antes de cada commit. A Edge Function pode ser checada com `deno check
 - Consultas públicas gratuitas (BrasilAPI/cnpj.ws/ViaCEP) só sob demanda, preenchendo campos vazios; CPF nunca é enviado.
 - Importador (`lib/importer.ts`, `lib/importCommit.ts`): nunca apagar dados com campo vazio; prévia antes de gravar;
   `import_key` evita lançamentos duplicados; não inventar o layout oficial das planilhas do Estado.
+  Diferenças com cadastros existentes só são gravadas se aprovadas campo a campo na prévia (`approvedChanges`).
+  "Importar clientes" (Clientes e fornecedores) abre o **mesmo** importador (`/importacao?foco=cadastro`) —
+  nunca criar um segundo importador.
 - Campos com máscara usam `TextInput numericMaskCaret` (correção de cursor do LSB).
 
 ## Identidade visual oficial
-- Logomarca oficial: `app/public/brand/associapec-logo.png` (fundo claro) e `associapec-logo-transparente.png`.
-  Use os arquivos originais; **não redesenhe, não altere animais, letras ou cores, preserve proporções**.
-  Enquanto não existirem, `BrandLogo` mostra a marca textual (nunca uma recriação).
-- Paleta: verde institucional `#1b7f37`, verde escuro `#0e3b2e`, fundo creme `#f7f5ec` (tokens em `styles/base.css`).
-  Ao receber a logo, conferir os verdes exatos do arquivo e ajustar os tokens se necessário.
+- Logomarca oficial (arquivos originais enviados pela associação, em `app/public/brand/`):
+  `associapec-logo.png` (fundo claro) e `associapec-logo-transparente.png` — **nunca editar esses dois**.
+  Derivados fiéis: `associapec-logo-web.png/.webp` (só margens vazias aparadas), `associapec-simbolo.png`
+  (símbolo recortado na faixa transparente acima do nome; menu recolhido e favicons) e os ícones em `app/public/`.
+  **Não redesenhar, não recriar com IA, não trocar por ícone genérico, não alterar animais, letras ou cores, preservar proporções.**
+  `BrandLogo` (variantes `sidebar`, `login`, `symbol`); se a imagem falhar, mostra só o nome em texto.
+  Classes CSS da marca usam o prefixo `brand-` (a classe `sidebar` já é o menu fixo).
+- Paleta: verde da logo `#009834` / `#003034` (tokens `--brand`, `--brand-dark`); verde de interface `#1b7f37`
+  (contraste de botões/textos), fundo creme `#f7f5ec`.
 - Documentos PDF: usar `createBrandedDoc` (`lib/pdf.ts`) — cabeçalho com logo/nome, rodapé com data e página.
   Demonstrativos de cobrança nunca devem parecer boleto (sem código de barras/Pix).
 - Usuário logado fica na Topbar (`UserMenu`); o menu lateral é só navegação.

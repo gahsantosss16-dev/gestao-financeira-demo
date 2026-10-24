@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useFeedback } from '../components/Feedback';
 import { Icon } from '../components/Icon';
@@ -49,6 +49,9 @@ type Step = 'arquivo' | 'mapeamento' | 'previa' | 'gravando' | 'resultado';
 
 function Importer() {
   const { profile } = useAuth();
+  // mesmo importador; aberto a partir de Clientes e fornecedores com foco cadastral
+  const [params] = useSearchParams();
+  const cadastral = params.get('foco') === 'cadastro';
   const { confirm, toast } = useFeedback();
   const parties = useTable('parties');
   const regs = useTable('party_registrations');
@@ -64,10 +67,12 @@ function Importer() {
   const [sheetIdx, setSheetIdx] = useState(0);
   const [headerRow, setHeaderRow] = useState(0);
   const [mapping, setMapping] = useState<ColumnMapping>({});
-  const [opts, setOpts] = useState<ImportOptions>({ defaultUf: 'MS', source: 'Planilha mensal do Estado', createParties: true, updateMode: 'preencher', generateReceivables: true, generateCharges: false, defaultDescription: 'Contribuição', defaultReference: today().slice(0, 7) });
+  const [opts, setOpts] = useState<ImportOptions>({ defaultUf: 'MS', source: 'Planilha mensal do Estado', createParties: true, updateMode: 'preencher', generateReceivables: !cadastral, generateCharges: false, defaultDescription: 'Contribuição', defaultReference: today().slice(0, 7) });
   const [categoryId, setCategoryId] = useState('');
   const [analysis, setAnalysis] = useState<AnalyzedRow[]>([]);
   const [decisions, setDecisions] = useState<Record<number, RowDecision>>({});
+  // conferência das diferenças: campos aprovados por linha (nada é atualizado sem aprovação)
+  const [approved, setApproved] = useState<Record<number, string[]>>({});
   const [filter, setFilter] = useState<RowClass | ''>('');
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [result, setResult] = useState<ImportBatch | null>(null);
@@ -114,12 +119,22 @@ function Importer() {
     setOpts(effective);
     setAnalysis(analyzeRows(parsed, { parties: parties.rows, registrations: regs.rows, receivables: receivables.rows }, effective));
     setDecisions({});
+    setApproved({});
     setFilter('');
     setStep('previa');
   };
 
   const summary = summarize(analysis);
   const pendingReview = analysis.filter((r) => r.cls === 'revisar' && !decisions[r.rowNumber]).length;
+  const changeRows = analysis.filter((r) => r.cls !== 'erro' && r.changes.length > 0);
+  const totalChanges = changeRows.reduce((a, r) => a + r.changes.length, 0);
+  const approvedCount = Object.values(approved).reduce((a, f) => a + f.length, 0);
+  const toggleChange = (row: number, field: string) => setApproved((cur) => {
+    const set = new Set(cur[row] ?? []);
+    if (set.has(field)) set.delete(field); else set.add(field);
+    return { ...cur, [row]: [...set] };
+  });
+  const approveAll = (kind?: 'preencher') => setApproved(Object.fromEntries(changeRows.map((r) => [r.rowNumber, r.changes.filter((c) => !kind || c.kind === kind).map((c) => c.field as string)])));
 
   const commit = async () => {
     if (!file || !sheet) return;
@@ -131,6 +146,7 @@ function Importer() {
         {summary.novo} novo(s) cadastro(s), {summary.vinculado} associado(s), {summary.financial} conta(s) a receber ({brl(summary.amount)}){opts.generateCharges ? ' com cobranças' : ''}.<br />
         {summary.erro > 0 && <>{summary.erro} linha(s) com erro não serão importadas. </>}
         {pendingReview > 0 && <>{pendingReview} linha(s) em revisão sem confirmação serão ignoradas. </>}
+        {totalChanges > 0 && <>{approvedCount} de {totalChanges} alteração(ões) de cadastro aprovada(s); as demais serão mantidas como estão. </>}
         Dados existentes não são apagados.
       </>,
       confirmLabel: `Importar ${toWrite} linha(s)`,
@@ -139,7 +155,7 @@ function Importer() {
     setProgress({ done: 0, total: analysis.length });
     const mappingByHeader = Object.fromEntries(Object.entries(mapping).map(([f, i]) => [f, headers[i as number] ?? `Coluna ${(i as number) + 1}`]));
     const batch = await run((s) => commitImport(s, {
-      fileName: file.name, sha256: file.sha, sheetName: sheet.name, mapping: mappingByHeader, options: opts, rows: analysis, decisions,
+      fileName: file.name, sha256: file.sha, sheetName: sheet.name, mapping: mappingByHeader, options: opts, rows: analysis, decisions, approvedChanges: approved,
       categoryId: categoryId || null, today: today(), onProgress: (done, total) => setProgress({ done, total }),
     }), 'Importação concluída.');
     if (batch) { setResult(batch); setStep('resultado'); }
@@ -151,7 +167,11 @@ function Importer() {
 
   return (
     <>
-      <PageHead title="Importar planilhas" subtitle="Planilhas mensais (Excel/CSV): identifica produtores por IE e CPF/CNPJ, atualiza cadastros e gera contas e cobranças sem duplicar" />
+      <PageHead title={cadastral ? 'Importar clientes' : 'Importar planilhas'}
+        subtitle={cadastral
+          ? 'Foco cadastral: identifica produtores por IE e CPF/CNPJ e prepara cadastros. É o mesmo importador da planilha mensal — os lançamentos podem ser ativados nas opções.'
+          : 'Planilhas mensais (Excel/CSV): identifica produtores por IE e CPF/CNPJ, atualiza cadastros após conferência e gera contas e cobranças sem duplicar'}
+        actions={cadastral ? <Link className="btn" to="/cadastros/pessoas"><Icon name="users" />Voltar a Clientes e fornecedores</Link> : <Link className="btn" to="/cadastros/pessoas"><Icon name="users" />Clientes e fornecedores</Link>} />
       <div className="tabs card-tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'importar'} className={tab === 'importar' ? 'active' : ''} type="button" onClick={() => setTab('importar')}>Nova importação</button>
         <button role="tab" aria-selected={tab === 'historico'} className={tab === 'historico' ? 'active' : ''} type="button" onClick={() => setTab('historico')}>Histórico ({batches.rows.length})</button>
@@ -246,12 +266,7 @@ function Importer() {
               <div className="form-grid">
                 <Field label="Origem (registrada no histórico)"><TextInput value={opts.source} onChange={(e) => setOpts({ ...opts, source: e.target.value })} /></Field>
                 <Field label="UF padrão da inscrição" hint="Usada quando a planilha não informa a UF"><select className="select" value={opts.defaultUf} onChange={(e) => setOpts({ ...opts, defaultUf: e.target.value })}>{UFS.map((u) => <option key={u}>{u}</option>)}</select></Field>
-                <Field label="Dados de cadastros existentes">
-                  <select className="select" value={opts.updateMode} onChange={(e) => setOpts({ ...opts, updateMode: e.target.value as ImportOptions['updateMode'] })}>
-                    <option value="preencher">Somente completar campos vazios (recomendado)</option>
-                    <option value="atualizar">Atualizar valores diferentes (nunca apaga)</option>
-                  </select>
-                </Field>
+                <div className="field"><Callout tone="info" icon="info">Cadastros existentes só são alterados depois da <b>conferência das diferenças</b> na prévia. Campos vazios na planilha nunca apagam dados.</Callout></div>
                 <div className="field checks-stack">
                   <label className="check"><input type="checkbox" checked={opts.createParties} onChange={(e) => setOpts({ ...opts, createParties: e.target.checked })} />Cadastrar produtores não encontrados</label>
                   <label className="check"><input type="checkbox" checked={opts.generateReceivables} disabled={!hasFinancial} onChange={(e) => setOpts({ ...opts, generateReceivables: e.target.checked })} />Gerar contas a receber {hasFinancial ? '' : '(associe Valor e Vencimento)'}</label>
@@ -297,6 +312,11 @@ function Importer() {
                 <div className="toolbar">
                   <b>{filter ? CLASS_META[filter].label : 'Todas as linhas'}</b>
                   <span className="spacer" />
+                  {totalChanges > 0 && <>
+                    <button className="btn sm" type="button" onClick={() => approveAll('preencher')}>Aprovar só campos vazios</button>
+                    <button className="btn sm" type="button" onClick={() => approveAll()}>Aprovar todas as diferenças</button>
+                    {approvedCount > 0 && <button className="btn sm ghost" type="button" onClick={() => setApproved({})}>Limpar aprovações</button>}
+                  </>}
                   {summary.erro + summary.revisar > 0 && <button className="btn sm" type="button" onClick={() => downloadText(`erros-${file?.name ?? 'planilha'}.csv`, errorsCsv(analysis.filter((r) => r.cls === 'erro' || r.cls === 'revisar').map((r) => ({ ...r, cls: CLASS_META[r.cls].label }))))}><Icon name="download" />Relatório de erros (CSV)</button>}
                   <button className="btn sm" type="button" onClick={() => setStep('mapeamento')}>Voltar ao mapeamento</button>
                 </div>
@@ -314,8 +334,17 @@ function Importer() {
                           <td data-label="Detalhes" className="details-cell">
                             {r.errors.map((e) => <div key={e} className="text-danger small">{e}</div>)}
                             {r.warnings.map((w) => <div key={w} className="text-warning small">{w}</div>)}
-                            {Object.keys(r.updates).length > 0 && <div className="small muted">Completar: {Object.keys(r.updates).join(', ')}</div>}
-                            {r.divergences.length > 0 && <div className="small muted">Divergências mantidas: {r.divergences.join('; ')}</div>}
+                            {r.cls !== 'erro' && r.changes.length > 0 && (
+                              <fieldset className="changes">
+                                <legend>Diferenças com o cadastro — marque o que deve ser atualizado</legend>
+                                {r.changes.map((c) => (
+                                  <label key={c.field} className="check change-item">
+                                    <input type="checkbox" checked={(approved[r.rowNumber] ?? []).includes(c.field)} onChange={() => toggleChange(r.rowNumber, c.field)} aria-label={`Atualizar ${c.label} da linha ${r.rowNumber}`} />
+                                    <span><b>{c.label}:</b> {c.from ? <><s>{c.from}</s> → </> : <span className="muted">(vazio) → </span>}{c.to}</span>
+                                  </label>
+                                ))}
+                              </fieldset>
+                            )}
                             {r.newRegistration && <div className="small muted">Nova inscrição estadual para este produtor</div>}
                             {r.cls === 'revisar' && (
                               <select className="select sm" aria-label={`Decisão da linha ${r.rowNumber}`} value={decisions[r.rowNumber] ? (decisions[r.rowNumber].action === 'link' ? `link:${(decisions[r.rowNumber] as { partyId: string }).partyId}` : decisions[r.rowNumber].action) : ''}

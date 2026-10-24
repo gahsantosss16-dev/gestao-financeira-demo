@@ -127,27 +127,48 @@ code { background: var(--surface-2); border: 1px solid var(--border); padding: 1
 .select.sm { height: 32px; font-size: 12.5px; margin-top: 4px; }
 @media (max-width: 1100px) { .import-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* Marca oficial */
-.brand-link { display: block; padding: 2px 6px 14px; }
-.brand-logo { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+/* Marca oficial (arquivos originais em public/brand) */
+:root { --brand: #009834; --brand-dark: #003034; }
+.brand-link { display: block; padding: 0 4px 12px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.brand-logo { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .brand-logo img { display: block; max-width: 100%; height: auto; object-fit: contain; }
-.brand-logo.sidebar img { max-height: 92px; }
-.brand-logo.sidebar small { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
-.brand-logo.login img { max-height: 150px; }
-.sidebar .brand { padding: 4px 8px 16px; }
+.brand-logo.brand-sidebar img { width: 168px; }
+.brand-logo.brand-sidebar small { color: var(--muted); font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.brand-logo.brand-login img { width: min(260px, 70vw); }
+.brand-logo.brand-symbol-img img { width: 44px; height: 44px; }
+.brand-fallback { display: block; font-weight: 800; font-size: 20px; color: var(--brand-dark); letter-spacing: .04em; text-align: center; }
+.brand-symbol { display: none; justify-content: center; }
+/* tema escuro: a marca tem elementos verde-escuros; fica sobre uma placa clara para manter o contraste */
+:root[data-theme="dark"] .brand-logo img { background: #f7f5ec; border-radius: 14px; padding: 6px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-logo img { background: #f7f5ec; border-radius: 14px; padding: 6px; } }
+
+/* Menu lateral recolhível (telas largas) */
+.sidebar { transition: width .2s ease; width: var(--sidebar); }
+.sidebar-toggle { display: flex; align-items: center; gap: 11px; margin-top: 8px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--muted); font-weight: 600; cursor: pointer; }
+.sidebar-toggle:hover { color: var(--primary); border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
+.nav a.active { box-shadow: inset 3px 0 0 var(--brand); }
+@media (min-width: 901px) {
+  .sidebar-collapsed { --sidebar: 76px; }
+  .sidebar-collapsed .sidebar { padding: 14px 10px; }
+  .sidebar-collapsed .brand-full, .sidebar-collapsed .nav-text, .sidebar-collapsed .nav-label, .sidebar-collapsed .nav .pill { display: none; }
+  .sidebar-collapsed .brand-symbol { display: flex; }
+  .sidebar-collapsed .nav a, .sidebar-collapsed .sidebar-toggle { justify-content: center; padding: 10px 0; }
+  .sidebar-collapsed .nav > div + div { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
+}
+@media (max-width: 900px) { .sidebar-toggle { display: none; } }
 
 /* Topbar: menu do usuário (padrão Neuro Hub Pro) */
 .user-menu { position: relative; }
 .user-trigger { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px 0 4px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; color: var(--text); max-width: 260px; }
 .user-trigger:hover, .user-trigger[aria-expanded="true"] { background: var(--surface-2); border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
-.user-trigger .avatar { background: linear-gradient(135deg, var(--primary), var(--brand-dark)); }
+.user-trigger .avatar { background: linear-gradient(135deg, var(--brand), var(--brand-dark)); }
 .user-id { display: flex; flex-direction: column; line-height: 1.15; text-align: left; min-width: 0; }
 .user-id b { font-size: 13px; max-width: 150px; }
 .user-id small { color: var(--muted); font-size: 11.5px; }
 .user-trigger .chev { width: 16px; height: 16px; color: var(--muted); }
 .user-dropdown { position: absolute; right: 0; top: calc(100% + 8px); width: 280px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px; z-index: 70; animation: pop .14s ease; }
 .user-head { display: flex; gap: 12px; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
-.user-head .avatar { background: linear-gradient(135deg, var(--primary), var(--brand-dark)); }
+.user-head .avatar { background: linear-gradient(135deg, var(--brand), var(--brand-dark)); }
 .user-head small { color: var(--muted); }
 .user-head .badge { margin-top: 4px; align-self: flex-start; }
 .user-dropdown [role="menuitem"] { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; background: none; border-radius: 9px; cursor: pointer; font-weight: 600; color: var(--text); text-align: left; }
@@ -162,7 +183,7 @@ code { background: var(--surface-2); border: 1px solid var(--border); padding: 1
   radial-gradient(900px 500px at 110% 110%, color-mix(in srgb, var(--brand-dark) 25%, transparent), transparent 60%),
   linear-gradient(160deg, var(--bg), color-mix(in srgb, var(--primary-soft) 70%, var(--bg))); }
 .login-shell { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); width: 100%; max-width: 940px; border-radius: 22px; overflow: hidden; box-shadow: 0 30px 80px rgba(14, 59, 46, .22); background: var(--surface); }
-.login-aside { background: linear-gradient(155deg, #1b7f37, #0e3b2e); color: #f2f7ef; padding: 40px 36px; display: flex; align-items: flex-end; position: relative; }
+.login-aside { background: linear-gradient(155deg, var(--brand), var(--brand-dark)); color: #f2f7ef; padding: 40px 36px; display: flex; align-items: flex-end; position: relative; }
 .login-aside::after { content: ""; position: absolute; inset: 0; background: radial-gradient(400px 260px at 80% 10%, rgba(255,255,255,.14), transparent 70%); pointer-events: none; }
 .login-aside-inner { position: relative; z-index: 1; }
 .login-kicker { display: inline-block; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; background: rgba(255,255,255,.14); padding: 4px 10px; border-radius: 999px; }
@@ -171,8 +192,7 @@ code { background: var(--surface-2); border: 1px solid var(--border); padding: 1
 .login-aside li { display: flex; gap: 10px; align-items: center; }
 .login-aside li svg { width: 18px; height: 18px; color: #a7f3b5; }
 .login-card { border: 0; box-shadow: none; border-radius: 0; max-width: none; padding: 34px 34px 28px; }
-.login-logo { display: flex; justify-content: center; margin-bottom: 14px; }
-.login-logo .brand { padding: 0; }
+.login-logo { display: flex; justify-content: center; margin-bottom: 10px; }
 .login-title { font-size: 21px; }
 .login-sub { margin: -6px 0 2px; display: flex; align-items: center; gap: 6px; }
 .input-lg { height: 44px; font-size: 15px; }
@@ -197,3 +217,7 @@ a.kpi:focus-visible { outline: 3px solid var(--primary-soft); outline-offset: 2p
 .kpi-primary { border-top: 3px solid var(--primary); }
 .block-link { display: block; color: var(--text); }
 .block-link:hover { color: var(--primary); text-decoration: underline; }
+.changes { border: 1px dashed var(--border); border-radius: 10px; padding: 6px 10px 8px; margin: 6px 0 0; }
+.changes legend { font-size: 11.5px; font-weight: 700; color: var(--muted); padding: 0 4px; }
+.change-item { font-size: 12.5px; padding: 2px 0; }
+.change-item s { color: var(--muted); }

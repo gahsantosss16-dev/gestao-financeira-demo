@@ -259,11 +259,18 @@ export interface AnalyzedRow extends ParsedRow {
   updates: Partial<Party>;
   /** valores diferentes do cadastro que NÃO serão aplicados no modo "preencher" */
   divergences: string[];
+  /** diferenças campo a campo com o cadastro existente: só são gravadas após conferência e aprovação */
+  changes: FieldChange[];
   importKey: string | null;
   financial: boolean;
   errors: string[];
   warnings: string[];
 }
+
+export const CHANGE_LABEL: Record<string, string> = {
+  email: 'E-mail', phone: 'Telefone', cep: 'CEP', street: 'Endereço', city: 'Cidade', uf: 'UF', document: 'CPF/CNPJ',
+};
+export interface FieldChange { field: keyof Party; label: string; from: string | null; to: string; kind: 'preencher' | 'divergente' }
 
 export function parseRow(cells: string[], headers: string[], mapping: ColumnMapping, rowNumber: number, opts: Pick<ImportOptions, 'defaultUf' | 'defaultReference'>): ParsedRow {
   const get = (f: ImportField) => (mapping[f] !== undefined ? String(cells[mapping[f]!] ?? '').trim() : '');
@@ -314,7 +321,7 @@ export function analyzeRows(rows: ParsedRow[], existing: ExistingData, opts: Imp
   return rows.map((r): AnalyzedRow => {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const out: AnalyzedRow = { ...r, cls: 'novo', partyId: null, candidates: [], identity: '', registrationId: null, newRegistration: false, updates: {}, divergences: [], importKey: null, financial: false, errors, warnings };
+    const out: AnalyzedRow = { ...r, cls: 'novo', partyId: null, candidates: [], identity: '', registrationId: null, newRegistration: false, updates: {}, divergences: [], changes: [], importKey: null, financial: false, errors, warnings };
 
     // --- validação de identificadores
     if (r.ie) {
@@ -363,8 +370,12 @@ export function analyzeRows(rows: ParsedRow[], existing: ExistingData, opts: Imp
       for (const [k, v] of Object.entries(incoming) as [keyof Party, string | undefined][]) {
         if (!v) continue;
         const current = party[k] as string | null;
-        if (!current) (out.updates as Record<string, string>)[k] = v;
-        else if (normalizeName(current) !== normalizeName(v)) {
+        if (!current) {
+          (out.updates as Record<string, string>)[k] = v;
+          out.changes.push({ field: k, label: CHANGE_LABEL[k] ?? k, from: null, to: v, kind: 'preencher' });
+        } else if (normalizeName(current) !== normalizeName(v)) {
+          // CPF/CNPJ divergente nunca é substituído pela importação
+          if (k !== 'document') out.changes.push({ field: k, label: CHANGE_LABEL[k] ?? k, from: current, to: v, kind: 'divergente' });
           if (opts.updateMode === 'atualizar' && k !== 'document') (out.updates as Record<string, string>)[k] = v;
           else out.divergences.push(`${k}: “${current}” → “${v}”`);
         }

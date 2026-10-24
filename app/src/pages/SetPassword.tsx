@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { PASSWORD_MIN_LENGTH, validatePassword } from '../auth/authRedirect';
 import { useFeedback } from '../components/Feedback';
+import { BrandLogo } from '../components/Brand';
 import { Icon } from '../components/Icon';
 import { Callout } from '../components/ui';
 
@@ -64,10 +65,7 @@ export function SetPassword() {
   return (
     <div className="login-page">
       <div className="login-card card">
-        <div className="brand login-brand">
-          <span className="brand-mark" aria-hidden="true"><Icon name="check" /></span>
-          <span className="brand-text"><b>ASSOCIAPEC</b><small>Gestão Financeira</small></span>
-        </div>
+        <div className="login-logo"><BrandLogo variant="login" /></div>
         <SetPasswordForm
           email={profile?.email ?? null}
           initialName={profile?.full_name ?? ''}

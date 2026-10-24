@@ -1,25 +1,31 @@
+// Logomarca oficial da ASSOCIAPEC — arquivos originais enviados pela associação
+// (public/brand/). Versões web: marca completa sem as margens vazias e símbolo
+// (círculo com os animais) separado da palavra por uma faixa transparente do
+// próprio arquivo original. Nenhuma recriação, distorção ou alteração de cores.
 import { useState } from 'react';
-import { Icon } from './Icon';
 
-// Logomarca oficial da ASSOCIAPEC. Os arquivos ficam em public/brand/; enquanto
-// não forem publicados, exibe-se a marca textual (nunca uma recriação da logo).
-export const LOGO_TRANSPARENT = 'brand/associapec-logo-transparente.png';
-export const LOGO_LIGHT_BG = 'brand/associapec-logo.png';
+export const LOGO_FULL = 'brand/associapec-logo-web.png';
+export const LOGO_FULL_WEBP = 'brand/associapec-logo-web.webp';
+export const LOGO_SYMBOL = 'brand/associapec-simbolo.png';
+const ALT = 'ASSOCIAPEC — Associação de Pecuaristas de Fazendas Certificadas';
 
-export function BrandLogo({ variant = 'sidebar' }: { variant?: 'sidebar' | 'login' }) {
+type Variant = 'sidebar' | 'login' | 'symbol';
+
+export function BrandLogo({ variant = 'sidebar' }: { variant?: Variant }) {
   const [failed, setFailed] = useState(false);
-  if (!failed) {
-    return (
-      <span className={`brand-logo ${variant}`}>
-        <img src={LOGO_TRANSPARENT} alt="ASSOCIAPEC — Associação de Pecuaristas de Fazendas Certificadas" onError={() => setFailed(true)} />
-        {variant === 'sidebar' && <small>Gestão Financeira</small>}
-      </span>
-    );
+  // se o arquivo não carregar (ex.: conexão), mostra só o nome — nunca um ícone genérico
+  if (failed) return <span className={`brand-fallback brand-${variant}`}>ASSOCIAPEC</span>;
+  if (variant === 'symbol') {
+    return <span className="brand-logo brand-symbol-img"><img src={LOGO_SYMBOL} alt={ALT} width={44} height={44} onError={() => setFailed(true)} /></span>;
   }
   return (
-    <span className={`brand ${variant === 'login' ? 'login-brand' : ''}`}>
-      <span className="brand-mark" aria-hidden="true"><Icon name="check" /></span>
-      <span className="brand-text"><b>ASSOCIAPEC</b><small>{variant === 'login' ? 'Associação de Pecuaristas de Fazendas Certificadas' : 'Gestão Financeira'}</small></span>
+    // prefixo brand-: a classe "sidebar" já pertence à barra lateral (position: fixed)
+    <span className={`brand-logo brand-${variant}`}>
+      <picture>
+        <source srcSet={LOGO_FULL_WEBP} type="image/webp" />
+        <img src={LOGO_FULL} alt={ALT} width={518} height={430} onError={() => setFailed(true)} />
+      </picture>
+      {variant === 'sidebar' && <small>Gestão Financeira</small>}
     </span>
   );
 }

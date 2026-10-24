@@ -1,6 +1,6 @@
 // Documentos PDF com a identidade da ASSOCIAPEC (relatórios, demonstrativos e
 // comprovantes). jsPDF é carregado sob demanda para não pesar a abertura do app.
-// A logomarca oficial é lida de brand/associapec-logo.png quando o arquivo existir.
+// A logomarca oficial é lida de public/brand/ (arquivos originais da associação).
 import type { jsPDF as JsPDF } from 'jspdf';
 import { formatDocument } from './documents';
 import { brl, fdate, fdatetime } from './format';
@@ -8,11 +8,13 @@ import { brl, fdate, fdatetime } from './format';
 export const BRAND = {
   name: 'ASSOCIAPEC',
   fullName: 'Associação de Pecuaristas de Fazendas Certificadas',
-  green: [27, 127, 55] as [number, number, number],
-  dark: [14, 59, 46] as [number, number, number],
+  // cores da logomarca oficial
+  green: [0, 152, 52] as [number, number, number],
+  dark: [0, 48, 52] as [number, number, number],
   muted: [100, 107, 99] as [number, number, number],
   line: [222, 226, 214] as [number, number, number],
-  logoPath: 'brand/associapec-logo.png',
+  // marca completa com fundo transparente (originais em public/brand/)
+  logoPath: 'brand/associapec-logo-web.png',
 };
 
 let logoCache: Promise<string | null> | null = null;

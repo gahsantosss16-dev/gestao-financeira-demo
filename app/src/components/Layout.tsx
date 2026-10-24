@@ -44,11 +44,15 @@ const BOTTOM: NavItem[] = [
 ];
 
 const THEME_KEY = 'associapec-theme';
+const SIDEBAR_KEY = 'associapec-sidebar-recolhida';
 
 export function Layout() {
   const { profile, mode, resetDemo } = useAuth();
   const { confirm, toast } = useFeedback();
   const [menuOpen, setMenuOpen] = useState(false);
+  // menu lateral recolhido (somente telas largas); preferência do próprio navegador
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem(SIDEBAR_KEY) === '1'; } catch { return false; } });
+  const toggleCollapsed = () => setCollapsed((v) => { try { localStorage.setItem(SIDEBAR_KEY, v ? '0' : '1'); } catch { /* ignora */ } return !v; });
   const location = useLocation();
 
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
@@ -75,7 +79,7 @@ export function Layout() {
   const visible = (i: NavItem) => !i.roles || (profile && i.roles.includes(profile.role));
 
   return (
-    <div className={`${mode === 'demo' ? 'with-banner' : ''} ${menuOpen ? 'menu-open' : ''}`}>
+    <div className={`${mode === 'demo' ? 'with-banner' : ''} ${menuOpen ? 'menu-open' : ''} ${collapsed ? 'sidebar-collapsed' : ''}`}>
       {mode === 'demo' && (
         <div className="demo-banner" role="note">
           <strong>DEMONSTRAÇÃO</strong>
@@ -85,7 +89,10 @@ export function Layout() {
       )}
       <div className="app">
         <aside className="sidebar" aria-label="Menu principal">
-          <NavLink className="brand-link" to="/" aria-label="ASSOCIAPEC — Painel financeiro"><BrandLogo /></NavLink>
+          <NavLink className="brand-link" to="/" aria-label="ASSOCIAPEC — Painel financeiro">
+            <span className="brand-full"><BrandLogo /></span>
+            <span className="brand-symbol"><BrandLogo variant="symbol" /></span>
+          </NavLink>
           <nav className="nav">
             {NAV.map((sec) => {
               const items = sec.items.filter(visible);
@@ -94,8 +101,8 @@ export function Layout() {
                 <div key={sec.label}>
                   <div className="nav-label">{sec.label}</div>
                   {items.map((i) => (
-                    <NavLink key={i.to} to={i.to} end={i.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
-                      <Icon name={i.icon} />{i.label}
+                    <NavLink key={i.to} to={i.to} end={i.to === '/'} title={collapsed ? i.label : undefined} aria-label={i.label} className={({ isActive }) => (isActive ? 'active' : '')}>
+                      <Icon name={i.icon} /><span className="nav-text">{i.label}</span>
                       {i.stage && <span className="pill soft">{i.stage}</span>}
                     </NavLink>
                   ))}
@@ -103,6 +110,10 @@ export function Layout() {
               );
             })}
           </nav>
+          <button type="button" className="sidebar-toggle" onClick={toggleCollapsed} aria-pressed={collapsed} title={collapsed ? 'Expandir menu' : 'Recolher menu'}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={collapsed ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'} /></svg>
+            <span className="nav-text">{collapsed ? 'Expandir menu' : 'Recolher menu'}</span>
+          </button>
         </aside>
         <div className="scrim" onClick={() => setMenuOpen(false)} />
         <div className="main">
