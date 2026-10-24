@@ -9,9 +9,12 @@ import type { Role } from './lib/types';
 import { Accounts } from './pages/Accounts';
 import { Audit, Users } from './pages/Admin';
 import { Categories, Services } from './pages/Catalog';
+import { Charges } from './pages/Charges';
 import { Dashboard } from './pages/Dashboard';
 import { FiscalNotes, FiscalSettings } from './pages/Fiscal';
+import { ImportPage } from './pages/Import';
 import { Login } from './pages/Login';
+import { MyProfile } from './pages/MyProfile';
 import { NextStage } from './pages/NextStage';
 import { Parties } from './pages/Parties';
 import { SetPassword } from './pages/SetPassword';
@@ -33,13 +36,15 @@ function Shell() {
         <Route index element={<Dashboard />} />
         <Route path="receber" element={<Accounts key="receber" kind="receber" />} />
         <Route path="pagar" element={<Accounts key="pagar" kind="pagar" />} />
+        <Route path="cobrancas" element={<Charges />} />
+        <Route path="meu-perfil" element={<MyProfile />} />
         <Route path="cadastros/pessoas" element={<Parties />} />
         <Route path="cadastros/categorias" element={<Categories />} />
         <Route path="cadastros/servicos" element={<Services />} />
         <Route path="fiscal/notas" element={<FiscalNotes />} />
         <Route path="fiscal/configuracao" element={<RequireRole roles={['admin', 'fiscal', 'financeiro']}><FiscalSettings /></RequireRole>} />
         <Route path="relatorios" element={<NextStage page="relatorios" />} />
-        <Route path="importacao" element={<NextStage page="importacao" />} />
+        <Route path="importacao" element={<RequireRole roles={['admin', 'financeiro']}><ImportPage /></RequireRole>} />
         <Route path="admin/usuarios" element={<RequireRole roles={['admin']}><Users /></RequireRole>} />
         <Route path="admin/auditoria" element={<RequireRole roles={['admin']}><Audit /></RequireRole>} />
         <Route path="definir-senha" element={<Navigate to="/" replace />} />

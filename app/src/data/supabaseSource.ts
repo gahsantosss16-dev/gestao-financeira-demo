@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Attachment, TableName } from '../lib/types';
-import { checkAttachment, keyOf, type DataSource, type FiscalCallResult, type Row } from './source';
+import { checkAttachment, duplicateMessage, keyOf, type DataSource, type FiscalCallResult, type Row } from './source';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -17,14 +17,20 @@ const ORDER: Partial<Record<TableName, { column: string; ascending: boolean }>> 
   nfse_requests: { column: 'created_at', ascending: false },
   receivables: { column: 'due_date', ascending: true },
   payables: { column: 'due_date', ascending: true },
+  charges: { column: 'created_at', ascending: false },
+  import_batches: { column: 'created_at', ascending: false },
+  import_rows: { column: 'row_number', ascending: true },
 };
 
-function fail(error: { message: string; code?: string } | null): never {
+function fail(error: { message: string; code?: string; details?: string } | null): never {
   const msg = error?.message || 'Erro desconhecido';
   if (error?.code === '42501' || /row-level security/i.test(msg)) throw new Error('Seu perfil não tem permissão para esta operação.');
-  if (error?.code === '23505') throw new Error('Registro duplicado (já existe um cadastro com estes dados).');
+  if (error?.code === '23505') throw new Error(duplicateMessage(`${msg} ${error.details ?? ''}`));
+  if (error?.code === '23514') throw new Error('Dados inválidos para este registro. Revise os campos.');
   throw new Error(msg);
 }
+
+let cachedVersion: Promise<1 | 2> | null = null;
 
 export class SupabaseSource implements DataSource {
   readonly mode = 'supabase' as const;
@@ -35,19 +41,20 @@ export class SupabaseSource implements DataSource {
     const o = ORDER[table];
     if (o) q = q.order(o.column, { ascending: o.ascending });
     if (table === 'audit_log' || table === 'nfse_requests') q = q.limit(500);
+    if (table === 'import_rows') q = q.limit(20000);
     const { data, error } = await q;
     if (error) fail(error);
     return (data ?? []) as Row<T>[];
   }
 
   async insert<T extends TableName>(table: T, row: Partial<Row<T>>) {
-    const { data, error } = await this.client.from(table).insert(row).select().single();
+    const { data, error } = await this.client.from(table).insert(row as never).select().single();
     if (error) fail(error);
     return data as Row<T>;
   }
 
   async update<T extends TableName>(table: T, key: string, patch: Partial<Row<T>>) {
-    const { data, error } = await this.client.from(table).update(patch).eq(keyOf(table), key).select().maybeSingle();
+    const { data, error } = await this.client.from(table).update(patch as never).eq(keyOf(table), key).select().maybeSingle();
     if (error) fail(error);
     if (!data) throw new Error('Seu perfil não tem permissão para esta operação.');
     return data as Row<T>;
@@ -76,6 +83,15 @@ export class SupabaseSource implements DataSource {
     const { data, error } = await this.client.storage.from('comprovantes').createSignedUrl(att.storage_path, 120);
     if (error) fail(error);
     return data.signedUrl;
+  }
+
+  schemaVersion() {
+    cachedVersion ??= (async () => {
+      // a tabela de cobranças só existe após a migração operacional
+      const { error } = await this.client.from('charges').select('id', { head: true, count: 'exact' }).limit(1);
+      return error && (error.code === 'PGRST205' || error.code === '42P01' || /does not exist|schema cache/i.test(error.message)) ? 1 : 2;
+    })();
+    return cachedVersion;
   }
 
   async callFiscal(action: Parameters<DataSource['callFiscal']>[0], payload: Parameters<DataSource['callFiscal']>[1]): Promise<FiscalCallResult> {

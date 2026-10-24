@@ -17,3 +17,5 @@ PSQL=("${RUNAS[@]}" psql -h "$TMP" -p "$PORT" -U postgres -d postgres -v ON_ERRO
 for f in "$DIR"/migrations/*.sql; do echo "migração: $(basename "$f")"; "${PSQL[@]}" -f "$f"; done
 "${PSQL[@]}" -f "$DIR/seed.sql"
 "${PSQL[@]}" -f "$DIR/tests/rls_test.sql"
+"${PSQL[@]}" -f "$DIR/tests/rls_test_v2.sql"
+TMPDIR_CONC="$TMP" bash "$DIR/tests/concurrency_test.sh" "${PSQL[@]}"

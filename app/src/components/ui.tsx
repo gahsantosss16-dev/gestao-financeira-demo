@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { STATUS_META, type AccountStatus } from '../lib/finance';
 import { Icon } from './Icon';
 
@@ -14,14 +15,13 @@ export function PageHead({ title, subtitle, actions }: { title: string; subtitle
 export const Badge = ({ tone, children }: { tone: string; children: ReactNode }) => <span className={`badge tone-${tone}`}>{children}</span>;
 export const StatusBadge = ({ status }: { status: AccountStatus }) => <Badge tone={STATUS_META[status].tone}>{STATUS_META[status].label}</Badge>;
 
-export function Kpi({ label, value, sub, icon, tone }: { label: string; value: string; sub?: ReactNode; icon: string; tone: string }) {
-  return (
-    <div className="card kpi">
-      <div className="kpi-top"><span>{label}</span><span className={`kpi-ico tone-${tone}`}><Icon name={icon} /></span></div>
-      <div className="kpi-val">{value}</div>
-      {sub && <div className="kpi-sub">{sub}</div>}
-    </div>
-  );
+export function Kpi({ label, value, sub, icon, tone, to }: { label: string; value: string; sub?: ReactNode; icon: string; tone: string; to?: string }) {
+  const body = <>
+    <div className="kpi-top"><span>{label}</span><span className={`kpi-ico tone-${tone}`}><Icon name={icon} /></span></div>
+    <div className="kpi-val">{value}</div>
+    {sub && <div className="kpi-sub">{sub}</div>}
+  </>;
+  return to ? <Link className={`card kpi kpi-${tone}`} to={to} aria-label={`${label}: ${value}. Ver registros`}>{body}</Link> : <div className={`card kpi kpi-${tone}`}>{body}</div>;
 }
 
 export function Empty({ children, icon = 'search' }: { children: ReactNode; icon?: string }) {
@@ -107,3 +107,14 @@ export function Pager({ page, total, onPage, label = 'registro(s)' }: { page: nu
     </div>
   );
 }
+
+/** Aviso exibido quando um recurso depende da migração operacional ainda não aplicada. */
+export function SchemaPending({ feature }: { feature: string }) {
+  return (
+    <Callout tone="warning" icon="lock">
+      <b>{feature}</b> depende da atualização do banco de dados (migração <code>operacional</code>), que aguarda
+      autorização para ser aplicada no Supabase. Os demais recursos continuam funcionando normalmente.
+    </Callout>
+  );
+}
+

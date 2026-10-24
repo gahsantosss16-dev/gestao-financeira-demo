@@ -49,11 +49,19 @@ describe('modo demonstração (espelho das regras do banco)', () => {
     await expect(s.insert('receivable_payments', { receivable_id: r.id, paid_at: T, amount: 41, method: 'PIX' })).rejects.toThrow(/excedem/);
     await expect(s.update('receivables', r.id, { paid_amount: 100 })).rejects.toThrow(/calculado/);
     await expect(s.update('receivables', r.id, { amount: 50 })).rejects.toThrow(/menor/);
-    as(s, 'admin');
-    await s.remove('receivable_payments', pay.id);
+    await expect(s.remove('receivable_payments', pay.id)).rejects.toThrow(/permissão/);
+    await expect(s.update('receivable_payments', pay.id, { reversal_reason: 'abc' })).rejects.toThrow(/justificativa/);
+    await expect(s.update('receivable_payments', pay.id, { amount: 10 })).rejects.toThrow(/não podem ser alterados/);
+    await s.update('receivable_payments', pay.id, { reversal_reason: 'Lançado no cliente errado' });
     expect((await s.list('receivables')).find((x) => x.id === r.id)!.paid_amount).toBe(0);
+    const reversed = (await s.list('receivable_payments')).find((p) => p.id === pay.id)!;
+    expect(reversed.reversed_at).toBeTruthy();
+    expect(reversed.reversed_by).toBe('demo-financeiro');
+    await expect(s.update('receivable_payments', pay.id, { reversal_reason: 'outra justificativa' })).rejects.toThrow(/já foi estornado/);
+    as(s, 'admin');
+    await expect(s.remove('receivables', r.id)).rejects.toThrow(/cancelamento/);
     const audit = await s.list('audit_log');
-    expect(audit.some((a) => a.table_name === 'receivable_payments' && a.action === 'DELETE')).toBe(true);
+    expect(audit.some((a) => a.table_name === 'receivable_payments' && a.action === 'UPDATE')).toBe(true);
   });
 
   it('bloqueia pagamento em conta cancelada e exclusão de cadastro vinculado', async () => {
@@ -88,6 +96,47 @@ describe('modo demonstração (espelho das regras do banco)', () => {
     expect(log).toMatchObject({ operation: 'emitir', environment: 'homologacao', url: 'https://nfse2-cgr.dsfweb.com.br/notafiscal-ws/nfse' });
     as(s, 'financeiro');
     expect((await s.callFiscal('emitir', { environment: 'homologacao' })).status).toBe('erro');
+  });
+
+  it('ignora o reenvio da mesma baixa (duplo clique)', async () => {
+    const r = (await s.list('receivables')).find((x) => x.paid_amount === 0 && !x.canceled_at)!;
+    const req = 'req-1';
+    await s.insert('receivable_payments', { receivable_id: r.id, paid_at: T, amount: 1, method: 'PIX', client_request_id: req });
+    await expect(s.insert('receivable_payments', { receivable_id: r.id, paid_at: T, amount: 1, method: 'PIX', client_request_id: req })).rejects.toThrow(/já foi registrado/);
+    expect((await s.list('receivables')).find((x) => x.id === r.id)!.paid_amount).toBe(1);
+  });
+
+  it('inscrições estaduais: várias por cadastro, únicas por UF', async () => {
+    const regs = await s.list('party_registrations');
+    expect(regs.length).toBeGreaterThan(5);
+    const [first] = regs;
+    await expect(s.insert('party_registrations', { party_id: first.party_id, uf: first.uf, ie: first.ie })).rejects.toThrow(/já está cadastrada/);
+    await s.insert('party_registrations', { party_id: first.party_id, uf: 'GO', ie: first.ie });
+    await expect(s.insert('party_registrations', { party_id: first.party_id, uf: 'MS', ie: '283123451', is_primary: true })).rejects.toThrow(/principal/);
+    await expect(s.insert('party_registrations', { party_id: first.party_id, uf: 'ms', ie: '28.312' })).rejects.toThrow(/formato/);
+  });
+
+  it('cobranças: código sequencial, uma ativa por conta, dados herdados da conta', async () => {
+    const charges = await s.list('charges');
+    const busy = new Set(charges.filter((c) => !c.canceled_at).map((c) => c.receivable_id));
+    const r = (await s.list('receivables')).find((x) => !busy.has(x.id) && !x.canceled_at)!;
+    const c = await s.insert('charges', { receivable_id: r.id, party_id: 'outro', description: '' });
+    expect(c.code).toMatch(/^COB-\d{4}-\d{5}$/);
+    expect(c.party_id).toBe(r.party_id);
+    expect(c.amount).toBe(r.amount);
+    await expect(s.insert('charges', { receivable_id: r.id, description: 'x' })).rejects.toThrow(/cobrança ativa/);
+    await expect(s.update('charges', c.id, { code: 'X' })).rejects.toThrow(/não podem ser alterados/);
+    await s.update('charges', c.id, { canceled_at: new Date().toISOString(), cancel_reason: 'teste' });
+    await expect(s.update('charges', c.id, { canceled_at: null })).rejects.toThrow(/reativada/);
+    const c2 = await s.insert('charges', { receivable_id: r.id, description: '' });
+    expect(c2.number).toBe(c.number + 1);
+    await expect(s.insert('charges', { receivable_id: r.id, description: '', amount: r.amount + 1 })).rejects.toThrow(/cobrança ativa|maior/);
+  });
+
+  it('reimportação não duplica lançamentos', async () => {
+    const [p] = await s.list('parties');
+    await s.insert('receivables', { party_id: p.id, description: 'imp', due_date: T, issue_date: T, amount: 10, import_key: 'k1' });
+    await expect(s.insert('receivables', { party_id: p.id, description: 'imp', due_date: T, issue_date: T, amount: 10, import_key: 'k1' })).rejects.toThrow(/já foi importado/);
   });
 
   it('impede gerar a mesma recorrência duas vezes', async () => {

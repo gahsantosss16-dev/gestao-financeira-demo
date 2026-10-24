@@ -69,6 +69,9 @@ O design system (paleta verde/creme, cards, tabelas responsivas, modais) foi her
 - `receivables` / `receivable_payments`, `payables` / `payable_payments` — `paid_amount` é **calculado por trigger**
   a partir dos pagamentos; o banco recusa pagamento acima do saldo, pagamento em conta cancelada e alteração manual de `paid_amount`.
 - `payables.recurrence` + `recurrence_parent_id` com índice único (não gera a mesma ocorrência duas vezes).
+- `party_registrations` (migração operacional) — inscrições estaduais/propriedades; UF + IE únicos; várias por CPF/CNPJ.
+- `charges` (migração operacional) — cobranças com código sequencial; uma ativa por conta a receber.
+- `import_batches` / `import_rows` (migração operacional) — lotes de importação e resultado por linha; `receivables.import_key` evita duplicidade.
 - `attachments` — metadados; arquivo no bucket privado `comprovantes` (URLs assinadas de 2 minutos).
 - `audit_log` — trigger genérico em todas as tabelas de negócio (quem, quando, antes/depois).
 - Fiscal: `fiscal_issuer` (uma linha por ambiente; certificado = **apenas metadados**), `nfse_documents`
@@ -103,10 +106,11 @@ qualquer hospedagem estática e em `financeiro.associapec.com.br` sem reconfigur
 | --- | --- |
 | Projeto Supabase | `cpepbgyycnbbfvtbzkgk` (org. `financeiro-associapec`) — `https://cpepbgyycnbbfvtbzkgk.supabase.co` |
 | Migração `fundacao` | **Aplicada** (versão `20261024175942`) |
+| Migração `operacional` | Criada e testada localmente — **não aplicada** (aguarda autorização) |
 | Verificador de segurança | 0 alertas |
 | Verificador de desempenho | apenas "índice não usado" (INFO), esperado com o banco vazio |
 | Dados | nenhum dado pessoal; só as 2 linhas vazias de `fiscal_issuer` |
-| Usuários | nenhum (o primeiro deve ser convidado pelo painel) |
+| Usuários | `financeiroassociapec@gmail.com` — Administrador |
 | Edge Function `nfse` | **não publicada** |
 | `seed.sql` | **não aplicado** (opcional) |
 

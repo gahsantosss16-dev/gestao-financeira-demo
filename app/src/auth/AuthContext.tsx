@@ -19,6 +19,10 @@ interface AuthState {
   signOut(): Promise<void>;
   resetPassword(email: string): Promise<void>;
   completePasswordSetup(password: string, confirm: string, fullName: string): Promise<void>;
+  /** altera somente o próprio nome (papel e e-mail são protegidos no banco) */
+  updateMyName(fullName: string): Promise<void>;
+  /** confirma a senha atual antes de trocar (padrão do LSB) */
+  changePassword(current: string, next: string, confirm: string): Promise<void>;
   resetDemo(): void;
 }
 
@@ -169,6 +173,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile({ ...profile, full_name: name });
       }
       setPasswordSetup(false);
+    },
+    async updateMyName(fullName) {
+      const name = fullName.trim();
+      if (name.length < 2) throw new Error('Informe seu nome.');
+      if (!profile) throw new Error('Sessão encerrada.');
+      if (demoSource) {
+        const u = DEMO_USERS.find((x) => x.id === profile.id);
+        if (u) u.full_name = name;
+        setProfile({ ...profile, full_name: name });
+        return;
+      }
+      const { error: err } = await supabase!.from('profiles').update({ full_name: name }).eq('id', profile.id);
+      if (err) throw new Error(err.message);
+      await supabase!.auth.updateUser({ data: { full_name: name } });
+      setProfile({ ...profile, full_name: name });
+    },
+    async changePassword(current, next, confirm) {
+      if (!supabase || !profile?.email) throw new Error('Alteração de senha disponível apenas com o Supabase conectado.');
+      if (!current) throw new Error('Informe a senha atual.');
+      const invalid = validatePassword(next, confirm);
+      if (invalid) throw new Error(invalid);
+      if (current === next) throw new Error('A nova senha deve ser diferente da atual.');
+      const { error: signErr } = await supabase.auth.signInWithPassword({ email: profile.email, password: current });
+      if (signErr) throw new Error('Senha atual incorreta.');
+      const { error: err } = await supabase.auth.updateUser({ password: next });
+      if (err) throw new Error(/weak|at least/i.test(err.message) ? 'Senha recusada pelo servidor por ser fraca.' : err.message);
     },
     resetDemo() { demoSource?.reset(); },
   }), [profile, loading, error, passwordSetupRequired, setPasswordSetup]);

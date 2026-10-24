@@ -59,15 +59,15 @@ export function Dashboard() {
       {err && <ErrorBox message={err} />}
       {loading ? <Loading /> : <>
         <div className="grid kpis">
-          <Kpi label="Receitas recebidas" value={brl(s.receivedInPeriod)} sub="no período" icon="in" tone="success" />
-          <Kpi label="Despesas pagas" value={brl(s.paidInPeriod)} sub="no período" icon="out" tone="warning" />
+          <Kpi label="Receitas recebidas" value={brl(s.receivedInPeriod)} sub="no período" icon="in" tone="success" to="/receber?status=pago" />
+          <Kpi label="Despesas pagas" value={brl(s.paidInPeriod)} sub="no período" icon="out" tone="warning" to="/pagar?status=pago" />
           <Kpi label="Saldo do período" value={brl(s.balance)} sub={s.balance >= 0 ? 'Resultado positivo' : 'Resultado negativo'} icon="wallet" tone={s.balance >= 0 ? 'primary' : 'danger'} />
-          <Kpi label="Valores vencidos" value={brl(s.overdueReceivable)} sub={<>a receber · {s.delinquentCount} inadimplente(s)</>} icon="alert" tone="danger" />
+          <Kpi label="Valores vencidos" value={brl(s.overdueReceivable)} sub={<>a receber · {s.delinquentCount} inadimplente(s)</>} icon="alert" tone="danger" to="/receber?status=vencido" />
         </div>
         <div className="grid kpis">
-          <Kpi label="Total a receber" value={brl(s.toReceive)} sub="em aberto" icon="money" tone="info" />
-          <Kpi label="Total a pagar" value={brl(s.toPay)} sub="em aberto" icon="clock" tone="primary" />
-          <Kpi label="Contas a pagar vencidas" value={brl(s.overduePayable)} sub="exigem atenção" icon="alert" tone={s.overduePayable > 0 ? 'danger' : 'success'} />
+          <Kpi label="Total a receber" value={brl(s.toReceive)} sub="em aberto" icon="money" tone="info" to="/receber?status=aberto" />
+          <Kpi label="Total a pagar" value={brl(s.toPay)} sub="em aberto" icon="clock" tone="primary" to="/pagar?status=aberto" />
+          <Kpi label="Contas a pagar vencidas" value={brl(s.overduePayable)} sub="exigem atenção" icon="alert" tone={s.overduePayable > 0 ? 'danger' : 'success'} to="/pagar?status=vencido" />
           <Kpi label="Vencem em 7 dias" value={String(s.upcoming.length)} sub={brlShort(s.upcoming.reduce((a, u) => a + u.open, 0))} icon="clock" tone="warning" />
         </div>
         <div className="grid g-2-1">
@@ -89,10 +89,10 @@ export function Dashboard() {
               ? <div className="card-pad muted">Nenhuma conta vence nos próximos 7 dias.</div>
               : <ul className="list">
                   {s.upcoming.slice(0, 8).map((u) => (
-                    <li key={u.kind + u.id}>
+                    <li key={u.kind + u.id} className="clickable-li">
                       <span className={`kpi-ico tone-${u.kind === 'receber' ? 'success' : 'warning'}`}><Icon name={u.kind === 'receber' ? 'in' : 'out'} /></span>
                       <div className="grow">
-                        <div className="truncate fw">{u.description}</div>
+                        <Link className="truncate fw block-link" to={`/${u.kind === 'receber' ? 'receber' : 'pagar'}?status=aberto&busca=${encodeURIComponent(u.description)}`}>{u.description}</Link>
                         <div className="cell-sub truncate">{name(u.party_id)} · {u.due_date === t ? 'hoje' : fdate(u.due_date)}</div>
                       </div>
                       <span className={`amount ${u.kind === 'pagar' ? 'text-warning' : 'text-success'}`}>{u.kind === 'pagar' ? '−' : '+'}{brl(u.open)}</span>
@@ -100,6 +100,7 @@ export function Dashboard() {
                   ))}
                 </ul>}
             <div className="card-pad row">
+              <Link className="btn sm" to="/receber?status=inadimplente">Inadimplentes ({s.delinquentCount})</Link>
               <Link className="btn sm" to="/receber?status=vencido">Ver vencidos a receber</Link>
               <Link className="btn sm" to="/pagar">Contas a pagar</Link>
             </div>

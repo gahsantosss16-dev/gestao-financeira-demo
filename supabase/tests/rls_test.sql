@@ -43,7 +43,7 @@ select pg_temp.expect(not has_table_privilege('authenticated', 'public.audit_log
 select pg_temp.expect(has_table_privilege('service_role', 'public.nfse_requests', 'INSERT'), 'service_role grava histórico fiscal');
 select pg_temp.expect((select bool_and(c.relrowsecurity) from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relkind = 'r'), 'RLS ativo em todas as tabelas');
-select pg_temp.expect((select count(*) from pg_tables where schemaname = 'public') = 14, '14 tabelas criadas');
+select pg_temp.expect((select count(*) from pg_tables where schemaname = 'public') = 18, '18 tabelas criadas');
 select pg_temp.expect(not has_schema_privilege('anon', 'private', 'USAGE'), 'anon sem acesso ao schema privado');
 select pg_temp.expect(not exists (
   select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -138,8 +138,9 @@ select pg_temp.expect((select count(*) from audit_log where table_name = 'receiv
 select pg_temp.expect((select count(*) from nfse_requests) = 1, 'admin lê histórico fiscal');
 select pg_temp.expect((select legal_name from fiscal_issuer where environment = 'homologacao') is not null, 'fiscal editou emitente');
 select pg_temp.expect_error($$update profiles set role = 'consulta' where id = auth.uid()$$, 'admin rebaixar a si mesmo');
-delete from receivable_payments;
+update receivable_payments set reversal_reason = 'Lançado em duplicidade';
 select pg_temp.expect((select paid_amount from receivables) = 0, 'estorno recalcula paid_amount');
+select pg_temp.expect((select count(*) from receivable_payments) = 1, 'estorno preserva o pagamento no histórico');
 reset role;
 
 -- storage: bucket privado

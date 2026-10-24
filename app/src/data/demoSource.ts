@@ -10,23 +10,28 @@ import { buildDemoDb, type DemoDb } from './demoSeed';
 import { checkAttachment, keyOf, type DataSource, type FiscalCallResult, type Row } from './source';
 import { buildNfseRequest } from '../../../supabase/functions/_shared/nfseEndpoints';
 
-const STORE_KEY = 'associapec-financeiro-demo-v1';
+const STORE_KEY = 'associapec-financeiro-demo-v2';
 const DENIED = 'Seu perfil não tem permissão para esta operação.';
 
 type AnyRow = Record<string, unknown>;
 
 // chaves estrangeiras que bloqueiam exclusão (espelham o schema)
 const REFERENCES: Partial<Record<TableName, [TableName, string][]>> = {
-  parties: [['receivables', 'party_id'], ['payables', 'party_id'], ['nfse_documents', 'party_id']],
+  parties: [['receivables', 'party_id'], ['payables', 'party_id'], ['nfse_documents', 'party_id'], ['charges', 'party_id']],
   categories: [['receivables', 'category_id'], ['payables', 'category_id'], ['services', 'category_id']],
   services: [['receivables', 'service_id'], ['nfse_documents', 'service_id']],
-  receivables: [['nfse_documents', 'receivable_id']],
+  receivables: [['nfse_documents', 'receivable_id'], ['charges', 'receivable_id']],
   payables: [['payables', 'recurrence_parent_id']],
 };
 const CASCADE: Partial<Record<TableName, [TableName, string][]>> = {
-  receivables: [['receivable_payments', 'receivable_id']],
-  payables: [['payable_payments', 'payable_id']],
+  parties: [['party_registrations', 'party_id']],
 };
+// conta com pagamentos (mesmo estornados) não pode ser excluída — trigger block_delete_with_payments
+const BLOCK_IF_PAYMENTS: Partial<Record<TableName, [TableName, string]>> = {
+  receivables: ['receivable_payments', 'receivable_id'],
+  payables: ['payable_payments', 'payable_id'],
+};
+const PAYMENT_REVERSAL_FIELDS = ['reversed_at', 'reversed_by', 'reversal_reason', 'updated_at'];
 const PAYMENTS: Partial<Record<TableName, { parent: 'receivables' | 'payables'; fk: string }>> = {
   receivable_payments: { parent: 'receivables', fk: 'receivable_id' },
   payable_payments: { parent: 'payables', fk: 'payable_id' },
@@ -47,7 +52,7 @@ export class DemoSource implements DataSource {
       const raw = this.storage?.getItem(STORE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as DemoDb;
-        if (parsed.seededFor) return parsed;
+        if (parsed.seededFor && parsed.charges && parsed.party_registrations) return parsed;
       }
     } catch { /* armazenamento indisponível: segue em memória */ }
     return buildDemoDb(this.todayIso);
@@ -98,8 +103,54 @@ export class DemoSource implements DataSource {
       }
       if (!String(row.name ?? '').trim()) throw new Error('Nome obrigatório.');
     }
-    if (table === 'categories' && this.rows('categories').some((c) => c.id !== row.id && c.type === row.type && String(c.name).toLowerCase() === String(row.name).toLowerCase())) {
-      throw new Error('Registro duplicado (categoria já existe).');
+    const ci = (v: unknown) => String(v ?? '').trim().toLowerCase();
+    if (table === 'categories' && this.rows('categories').some((c) => c.id !== row.id && c.type === row.type && ci(c.name) === ci(row.name))) {
+      throw new Error('Já existe uma categoria com este nome.');
+    }
+    if (table === 'services' && this.rows('services').some((c) => c.id !== row.id && ci(c.name) === ci(row.name))) {
+      throw new Error('Já existe um serviço com este nome.');
+    }
+    if (table === 'party_registrations') {
+      if (!/^[A-Z]{2}$/.test(String(row.uf)) || !/^[0-9]{2,14}$/.test(String(row.ie))) throw new Error('Inscrição estadual fora do formato (UF e somente números).');
+      if (this.rows('party_registrations').some((r) => r.id !== row.id && r.uf === row.uf && r.ie === row.ie)) throw new Error('Esta inscrição estadual já está cadastrada nesta UF.');
+      if (row.is_primary && this.rows('party_registrations').some((r) => r.id !== row.id && r.party_id === row.party_id && r.is_primary)) throw new Error('O cadastro já possui uma inscrição principal.');
+    }
+    if (table === 'receivables' && row.import_key && this.rows('receivables').some((r) => r.id !== row.id && r.import_key === row.import_key)) {
+      throw new Error('Este lançamento já foi importado anteriormente.');
+    }
+    if (PAYMENTS[table]) {
+      if (!old) {
+        if (row.reversed_at || row.reversal_reason) throw new Error('Um pagamento não pode ser registrado já estornado.');
+        if (row.client_request_id && this.rows(table).some((p) => p.client_request_id === row.client_request_id)) {
+          throw new Error(table === 'receivable_payments' ? 'Este recebimento já foi registrado (envio repetido ignorado).' : 'Este pagamento já foi registrado (envio repetido ignorado).');
+        }
+      } else {
+        if (old.reversed_at) throw new Error('Este pagamento já foi estornado.');
+        const changed = Object.keys({ ...old, ...row }).some((k) => !PAYMENT_REVERSAL_FIELDS.includes(k) && row[k] !== old[k]);
+        if (changed) throw new Error('Pagamentos não podem ser alterados; registre um estorno e lance novamente.');
+        if (String(row.reversal_reason ?? '').trim().length < 5) throw new Error('Informe a justificativa do estorno (mínimo de 5 caracteres).');
+        row.reversed_at = new Date().toISOString();
+        row.reversed_by = this.user?.id ?? null;
+      }
+    }
+    if (table === 'charges') {
+      if (old) {
+        if (['code', 'year', 'number', 'receivable_id'].some((k) => row[k] !== old[k])) throw new Error('Código e conta de origem da cobrança não podem ser alterados.');
+        if (old.canceled_at && !row.canceled_at) throw new Error('Cobrança cancelada não pode ser reativada; gere uma nova.');
+      } else {
+        const rec = this.rows('receivables').find((r) => r.id === row.receivable_id);
+        if (!rec) throw new Error('Conta a receber não encontrada.');
+        if (rec.canceled_at) throw new Error('Conta a receber cancelada não pode gerar cobrança.');
+        row.party_id = rec.party_id;
+        row.amount = row.amount ?? rec.amount;
+        row.due_date = row.due_date ?? rec.due_date;
+        row.description = String(row.description ?? '').trim() || rec.description;
+        if (Number(row.amount) > Number(rec.amount)) throw new Error('Valor da cobrança maior que o da conta a receber.');
+        if (this.rows('charges').some((c) => c.receivable_id === row.receivable_id && !c.canceled_at)) throw new Error('Já existe uma cobrança ativa para esta conta a receber.');
+        const year = new Date().getFullYear();
+        const number = Math.max(0, ...this.rows('charges').filter((c) => c.year === year).map((c) => Number(c.number))) + 1;
+        Object.assign(row, { year, number, code: `COB-${year}-${String(number).padStart(5, '0')}`, canceled_at: row.canceled_at ?? null });
+      }
     }
     if (table === 'services') {
       if (row.tax_validated && !row.c_trib_mun) throw new Error('Não é possível validar um serviço sem código de tributação municipal (cTribMun).');
@@ -126,6 +177,9 @@ export class DemoSource implements DataSource {
     if (table === 'profiles' && old && row.id === this.user?.id && row.role !== old.role) {
       throw new Error('Um administrador não pode alterar o próprio papel.');
     }
+    if (table === 'profiles' && old && row.email !== old.email) {
+      throw new Error('O e-mail é alterado somente pelo cadastro de acesso.');
+    }
   }
 
   private syncPaid(table: TableName, fkValue: string) {
@@ -133,7 +187,7 @@ export class DemoSource implements DataSource {
     if (!meta) return;
     const parent = this.rows(meta.parent).find((p) => p.id === fkValue);
     if (!parent) throw new Error('Conta não encontrada.');
-    const total = round2(this.rows(table).filter((p) => p[meta.fk] === fkValue).reduce((a, p) => a + Number(p.amount), 0));
+    const total = round2(this.rows(table).filter((p) => p[meta.fk] === fkValue && !p.reversed_at).reduce((a, p) => a + Number(p.amount), 0));
     if (total > Number(parent.amount)) throw new Error(`Pagamentos (${total.toFixed(2)}) excedem o valor da conta (${Number(parent.amount).toFixed(2)}).`);
     const before = { ...parent };
     parent.paid_amount = total;
@@ -174,6 +228,13 @@ export class DemoSource implements DataSource {
     this.validate(table, next, current);
     const before = { ...current };
     Object.assign(current, next);
+    try {
+      const meta = PAYMENTS[table];
+      if (meta) this.syncPaid(table, String(current[meta.fk]));
+    } catch (e) {
+      Object.assign(current, before);
+      throw e;
+    }
     this.audit(table, 'UPDATE', before, { ...current });
     this.persist();
     return { ...current } as unknown as Row<T>;
@@ -185,6 +246,10 @@ export class DemoSource implements DataSource {
     const idx = rows.findIndex((r) => r[keyOf(table)] === key);
     if (idx < 0) throw new Error('Registro não encontrado.');
     if (table === 'nfse_documents' && rows[idx].status !== 'rascunho') throw new Error('Somente rascunhos podem ser excluídos.');
+    const block = BLOCK_IF_PAYMENTS[table];
+    if (block && this.rows(block[0]).some((p) => p[block[1]] === key)) {
+      throw new Error('Conta com pagamentos registrados não pode ser excluída; utilize o cancelamento.');
+    }
     for (const [ref, fk] of REFERENCES[table] ?? []) {
       if (this.rows(ref).some((r) => r[fk] === key)) throw new Error('Não é possível excluir: existem lançamentos vinculados a este registro.');
     }
@@ -193,8 +258,6 @@ export class DemoSource implements DataSource {
       for (let i = kids.length - 1; i >= 0; i--) if (kids[i][fk] === key) { this.audit(child, 'DELETE', kids[i], null); kids.splice(i, 1); }
     }
     const [old] = rows.splice(idx, 1);
-    const meta = PAYMENTS[table];
-    if (meta) this.syncPaid(table, String(old[meta.fk]));
     this.audit(table, 'DELETE', old, null);
     this.persist();
   }
@@ -213,6 +276,8 @@ export class DemoSource implements DataSource {
     if (!blob) throw new Error('No modo demonstração o arquivo fica disponível apenas na sessão em que foi anexado.');
     return URL.createObjectURL(blob);
   }
+
+  async schemaVersion(): Promise<1 | 2> { return 2; }
 
   async callFiscal(action: Parameters<DataSource['callFiscal']>[0], payload: Parameters<DataSource['callFiscal']>[1]): Promise<FiscalCallResult> {
     if (!this.user || !['admin', 'fiscal'].includes(this.user.role)) return { status: 'erro', message: 'Perfil sem permissão para operações fiscais' };

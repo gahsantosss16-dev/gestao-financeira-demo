@@ -36,6 +36,24 @@ export interface Party {
   city_ibge_code: string | null;
   notes: string | null;
   active: boolean;
+  rural_producer?: boolean;
+  created_at?: string;
+}
+
+/** Inscrição estadual (propriedade). Um cadastro pode ter várias; UF + IE é único. */
+export interface PartyRegistration {
+  id: string;
+  party_id: string;
+  uf: string;
+  ie: string;
+  property_name: string | null;
+  city: string | null;
+  city_ibge_code: string | null;
+  status: string | null;
+  checked_at: string | null;
+  is_primary: boolean;
+  active: boolean;
+  notes: string | null;
   created_at?: string;
 }
 
@@ -82,6 +100,10 @@ export interface Receivable extends AccountBase {
   party_id: string;
   service_id: string | null;
   issue_date: string;
+  registration_id?: string | null;
+  import_batch_id?: string | null;
+  import_row_number?: number | null;
+  import_key?: string | null;
 }
 
 export type Recurrence = 'nenhuma' | 'mensal' | 'trimestral' | 'anual';
@@ -97,6 +119,10 @@ export interface Payment {
   method: string;
   notes: string | null;
   created_at?: string;
+  reversed_at?: string | null;
+  reversed_by?: string | null;
+  reversal_reason?: string | null;
+  client_request_id?: string | null;
 }
 export interface ReceivablePayment extends Payment { receivable_id: string }
 export interface PayablePayment extends Payment { payable_id: string }
@@ -174,6 +200,61 @@ export interface NfseRequest {
   created_at: string;
 }
 
+export interface Charge {
+  id: string;
+  code: string;
+  year: number;
+  number: number;
+  receivable_id: string;
+  party_id: string;
+  amount: number;
+  due_date: string;
+  description: string;
+  notes: string | null;
+  canceled_at: string | null;
+  cancel_reason: string | null;
+  last_notified_at: string | null;
+  notification_channel: string | null;
+  created_at?: string;
+}
+
+export interface ImportBatch {
+  id: string;
+  file_name: string;
+  file_sha256: string;
+  source: string;
+  sheet_name: string | null;
+  mapping: Record<string, string>;
+  options: Record<string, unknown>;
+  status: 'processando' | 'concluida' | 'concluida_com_erros' | 'interrompida';
+  total_rows: number;
+  created_count: number;
+  updated_count: number;
+  linked_count: number;
+  skipped_count: number;
+  error_count: number;
+  receivables_created: number;
+  charges_created: number;
+  created_by?: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export type ImportRowStatus = 'cadastro_criado' | 'cadastro_atualizado' | 'vinculado' | 'duplicado' | 'ignorado' | 'erro';
+export interface ImportRow {
+  id: number;
+  batch_id: string;
+  row_number: number;
+  raw: Record<string, unknown>;
+  status: ImportRowStatus;
+  party_id: string | null;
+  registration_id: string | null;
+  receivable_id: string | null;
+  charge_id: string | null;
+  message: string | null;
+  created_at?: string;
+}
+
 export interface Tables {
   profiles: Profile;
   parties: Party;
@@ -188,5 +269,9 @@ export interface Tables {
   fiscal_issuer: FiscalIssuer;
   nfse_documents: NfseDocument;
   nfse_requests: NfseRequest;
+  party_registrations: PartyRegistration;
+  charges: Charge;
+  import_batches: ImportBatch;
+  import_rows: ImportRow;
 }
 export type TableName = keyof Tables;

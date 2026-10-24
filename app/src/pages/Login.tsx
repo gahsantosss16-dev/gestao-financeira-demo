@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { BrandLogo } from '../components/Brand';
 import { Icon } from '../components/Icon';
 import { Callout } from '../components/ui';
 import { DEMO_USERS } from '../data/demoSeed';
@@ -28,18 +29,28 @@ export function Login() {
 
   return (
     <div className="login-page">
+      <div className="login-shell">
+        <aside className="login-aside" aria-hidden="true">
+          <div className="login-aside-inner">
+            <span className="login-kicker">Financeiro ASSOCIAPEC</span>
+            <h2>Cadastros, cobranças e recebimentos dos associados em um só lugar.</h2>
+            <ul>
+              <li><Icon name="shield" />Acesso por perfil e dados protegidos</li>
+              <li><Icon name="upload" />Importação das planilhas mensais</li>
+              <li><Icon name="chart" />Painel financeiro em tempo real</li>
+            </ul>
+          </div>
+        </aside>
       <div className="login-card card">
-        <div className="brand login-brand">
-          <span className="brand-mark" aria-hidden="true"><Icon name="check" /></span>
-          <span className="brand-text"><b>ASSOCIAPEC</b><small>Gestão Financeira</small></span>
-        </div>
+        <div className="login-logo"><BrandLogo variant="login" /></div>
         {mode === 'supabase' ? (
           <form onSubmit={submit} className="stack" noValidate>
-            <h1 className="login-title">Entrar</h1>
+            <h1 className="login-title">Acesse sua conta</h1>
+            <p className="muted small login-sub"><Icon name="lock" className="inline-ico" /> Área restrita a usuários autorizados</p>
             {(message || error) && <Callout tone={message?.tone ?? 'danger'} icon="info">{message?.text ?? error}</Callout>}
-            <div className="field"><label>E-mail<input className="input" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></label></div>
-            <div className="field"><label>Senha<input className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label></div>
-            <button className="btn primary" type="submit" disabled={busy || !email || !password}>{busy ? 'Entrando…' : 'Entrar'}</button>
+            <div className="field"><label>E-mail<input className="input input-lg" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@exemplo.com.br" /></label></div>
+            <div className="field"><label>Senha<input className="input input-lg" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label></div>
+            <button className="btn primary btn-lg" type="submit" disabled={busy || !email || !password}>{busy ? <><span className="spinner sm" aria-hidden="true" />Entrando…</> : 'Entrar'}</button>
             <button className="btn ghost" type="button" onClick={forgot}>Esqueci minha senha</button>
             <p className="muted small">O acesso é criado pelo administrador. Não há cadastro público.</p>
           </form>
@@ -62,6 +73,8 @@ export function Login() {
           </div>
         )}
       </div>
+      </div>
+      <p className="login-foot">ASSOCIAPEC · Associação de Pecuaristas de Fazendas Certificadas</p>
     </div>
   );
 }

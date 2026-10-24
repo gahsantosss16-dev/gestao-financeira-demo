@@ -5,12 +5,32 @@ import type { TableName } from '../lib/types';
 import type { Row } from './source';
 
 const VersionCtx = createContext<{ version: number; bump(): void }>({ version: 0, bump: () => {} });
+/** null enquanto verifica; 1 = só a migração fundacao; 2 = migração operacional aplicada */
+const SchemaCtx = createContext<1 | 2 | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const { source, profile } = useAuth();
   const [version, setVersion] = useState(0);
+  const [schema, setSchema] = useState<1 | 2 | null>(null);
   const bump = useCallback(() => setVersion((v) => v + 1), []);
-  return <VersionCtx.Provider value={{ version, bump }}>{children}</VersionCtx.Provider>;
+  useEffect(() => {
+    if (!profile) return;
+    let alive = true;
+    source.schemaVersion().then((v) => { if (alive) setSchema(v); }).catch(() => { if (alive) setSchema(1); });
+    return () => { alive = false; };
+  }, [source, profile]);
+  return (
+    <VersionCtx.Provider value={{ version, bump }}>
+      <SchemaCtx.Provider value={schema}>{children}</SchemaCtx.Provider>
+    </VersionCtx.Provider>
+  );
 }
+
+/** true quando o banco já tem a migração operacional (cobranças, IE, estornos, importação). */
+export function useSchemaV2() {
+  return useContext(SchemaCtx) === 2;
+}
+export const useSchemaVersion = () => useContext(SchemaCtx);
 
 /** Carrega uma tabela e recarrega automaticamente após qualquer alteração. */
 export function useTable<T extends TableName>(table: T, enabled = true) {

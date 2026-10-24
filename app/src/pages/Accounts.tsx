@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useFeedback } from '../components/Feedback';
 import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
 import { Badge, Callout, Empty, ErrorBox, Field, Loading, PAGE_SIZE, PageHead, Pager, SearchBox, StatusBadge } from '../components/ui';
-import { useMutation, useTable } from '../data/DataContext';
+import { PaymentForm, PaymentHistory } from '../components/finance';
+import { useMutation, useSchemaV2, useTable } from '../data/DataContext';
 import { checkAttachment } from '../data/source';
 import { formatDocument } from '../lib/documents';
-import { accountStatus, nextRecurrenceDate, openAmount, PAYMENT_METHODS, validatePayment, type AccountStatus } from '../lib/finance';
-import { addMonths, brl, diffDays, fdate, fdatetime, normalize, parseMoney, round2, today } from '../lib/format';
+import { formatIE } from '../lib/ie';
+import { accountStatus, openAmount, type AccountStatus } from '../lib/finance';
+import { addMonths, brl, diffDays, fdate, normalize, parseMoney, round2, today } from '../lib/format';
 import { can } from '../lib/permissions';
 import type { Attachment, Payable, Receivable, Recurrence } from '../lib/types';
 
@@ -33,6 +35,7 @@ interface Draft {
   party_id: string;
   category_id: string;
   service_id: string;
+  registration_id: string;
   description: string;
   document_number: string;
   issue_date: string;
@@ -57,14 +60,18 @@ export function Accounts({ kind }: { kind: Kind }) {
   const services = useTable('services', isRec);
   const nfse = useTable('nfse_documents', isRec);
   const attachments = useTable('attachments');
+  const v2 = useSchemaV2();
+  const registrations = useTable('party_registrations', isRec && v2);
+  const charges = useTable('charges', isRec && v2);
+  const navigate = useNavigate();
   const { run, busy, source } = useMutation();
   const writable = can(profile?.role, 'write', table);
   const canDelete = can(profile?.role, 'delete', table);
 
   const [params, setParams] = useSearchParams();
   const statusKey = params.get('status') ?? 'aberto';
-  const [q, setQ] = useState('');
-  const [partyFilter, setPartyFilter] = useState('');
+  const [q, setQ] = useState(params.get('busca') ?? '');
+  const [partyFilter, setPartyFilter] = useState(params.get('cliente') ?? '');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -101,13 +108,13 @@ export function Accounts({ kind }: { kind: Kind }) {
 
   const openNew = () => {
     setErrors({});
-    setDraft({ party_id: '', category_id: '', service_id: '', description: '', document_number: '', issue_date: t, due_date: t, amountText: '', installments: 1, recurrence: 'nenhuma', notes: '' });
+    setDraft({ party_id: partyFilter, category_id: '', service_id: '', registration_id: '', description: '', document_number: '', issue_date: t, due_date: t, amountText: '', installments: 1, recurrence: 'nenhuma', notes: '' });
   };
   const openEdit = (a: Account) => {
     setErrors({});
     setDetailId(null);
     setDraft({
-      id: a.id, party_id: a.party_id ?? '', category_id: a.category_id ?? '', service_id: (a as Receivable).service_id ?? '',
+      id: a.id, party_id: a.party_id ?? '', category_id: a.category_id ?? '', service_id: (a as Receivable).service_id ?? '', registration_id: (a as Receivable).registration_id ?? '',
       description: a.description, document_number: a.document_number ?? '', issue_date: (a as Receivable).issue_date ?? t,
       due_date: a.due_date, amountText: a.amount.toFixed(2).replace('.', ','), installments: 1,
       recurrence: (a as Payable).recurrence ?? 'nenhuma', notes: a.notes ?? '',
@@ -130,7 +137,7 @@ export function Accounts({ kind }: { kind: Kind }) {
     const base = {
       party_id: draft.party_id || null, category_id: draft.category_id || null, description: draft.description.trim(),
       document_number: draft.document_number.trim() || null, notes: draft.notes.trim() || null,
-      ...(isRec ? { service_id: draft.service_id || null, issue_date: draft.issue_date } : { recurrence: draft.recurrence }),
+      ...(isRec ? { service_id: draft.service_id || null, issue_date: draft.issue_date, ...(v2 ? { registration_id: draft.registration_id || null } : {}) } : { recurrence: draft.recurrence }),
     };
     if (draft.id) {
       const ok = await run((s) => s.update(table, draft.id!, { ...base, due_date: draft.due_date, amount } as never), 'Lançamento atualizado.');
@@ -229,6 +236,14 @@ export function Accounts({ kind }: { kind: Kind }) {
                 {partyOptions.map((p) => <option key={p.id} value={p.id}>{p.name}{p.document ? ` · ${formatDocument(p.document)}` : ''}</option>)}
               </select>
             </Field>
+            {isRec && v2 && registrations.rows.some((r) => r.party_id === draft.party_id && r.active) && (
+              <Field label="Inscrição / propriedade" hint="Vincula o lançamento à IE do produtor">
+                <select className="select" value={draft.registration_id} onChange={(e) => setDraft({ ...draft, registration_id: e.target.value })}>
+                  <option value="">Não vincular</option>
+                  {registrations.rows.filter((r) => r.party_id === draft.party_id && r.active).map((r) => <option key={r.id} value={r.id}>{r.uf} {formatIE(r.uf, r.ie)}{r.property_name ? ` — ${r.property_name}` : ''}</option>)}
+                </select>
+              </Field>
+            )}
             <Field label="Categoria">
               <select className="select" value={draft.category_id} onChange={(e) => setDraft({ ...draft, category_id: e.target.value })}>
                 <option value="">—</option>{catOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -279,38 +294,12 @@ export function Accounts({ kind }: { kind: Kind }) {
           payments={payRows.filter((p) => fk(p) === detail.id).sort((a, b) => b.paid_at.localeCompare(a.paid_at))}
           attachments={(attachments.rows as Attachment[]).filter((a) => a.entity_id === detail.id)}
           nfseCount={isRec ? nfse.rows.filter((n) => n.receivable_id === detail.id).length : 0}
-          writable={writable} canDelete={canDelete} busy={busy}
+          writable={writable} canDelete={canDelete}
           onClose={() => setDetailId(null)}
           onEdit={() => openEdit(detail)}
-          onPay={async (p) => {
-            const problem = validatePayment(detail, p.amount);
-            if (problem) { toast(problem, 'error'); return false; }
-            const remaining = round2(openAmount(detail) - p.amount);
-            if (!(await confirm({
-              title: isRec ? 'Confirmar recebimento' : 'Confirmar pagamento',
-              message: <>Registrar <b>{brl(p.amount)}</b> em {fdate(p.paid_at)} via {p.method}.<br />{remaining > 0 ? <>Restará <b>{brl(remaining)}</b> em aberto (pagamento parcial).</> : 'A conta ficará quitada.'}</>,
-              confirmLabel: 'Registrar',
-            }))) return false;
-            const ok = await run((s) => s.insert(payTable, { [isRec ? 'receivable_id' : 'payable_id']: detail.id, ...p } as never), isRec ? 'Recebimento registrado.' : 'Pagamento registrado.');
-            if (ok && remaining === 0 && !isRec) {
-              const pay = detail as Payable;
-              const next = nextRecurrenceDate(pay.due_date, pay.recurrence);
-              const parent = pay.recurrence_parent_id ?? pay.id;
-              const exists = (rows as Payable[]).some((r) => (r.recurrence_parent_id === parent || r.id === parent) && r.due_date === next);
-              if (next && !exists) {
-                await run((s) => s.insert('payables', {
-                  party_id: pay.party_id, category_id: pay.category_id, description: pay.description, document_number: null,
-                  due_date: next, amount: pay.amount, recurrence: pay.recurrence, recurrence_parent_id: parent, notes: pay.notes,
-                }), `Próxima ocorrência gerada para ${fdate(next)}.`);
-              }
-            }
-            return !!ok;
-          }}
-          onReverse={async (p) => {
-            if (await confirm({ title: 'Estornar pagamento?', message: <>O pagamento de <b>{brl(p.amount)}</b> em {fdate(p.paid_at)} será removido e o saldo voltará a ficar em aberto. A operação fica registrada na auditoria.</>, confirmLabel: 'Estornar', danger: true })) {
-              await run(async (s) => { await s.remove(payTable, p.id); return true; }, 'Pagamento estornado.');
-            }
-          }}
+          activeCharge={isRec ? charges.rows.find((c) => c.receivable_id === detail.id && !c.canceled_at)?.code ?? null : null}
+          canCharge={isRec && v2 && writable}
+          onCharge={() => navigate(`/cobrancas?nova=${detail.id}`)}
           onCancel={async (reason) => {
             if (await confirm({ title: 'Cancelar lançamento?', message: <>“{detail.description}” deixará de compor os saldos. O histórico é mantido.</>, confirmLabel: 'Cancelar lançamento', danger: true })) {
               const ok = await run((s) => s.update(table, detail.id, { canceled_at: new Date().toISOString(), cancel_reason: reason || null } as never), 'Lançamento cancelado.');
@@ -349,11 +338,11 @@ interface DetailProps {
   nfseCount: number;
   writable: boolean;
   canDelete: boolean;
-  busy: boolean;
   onClose(): void;
   onEdit(): void;
-  onPay(p: { paid_at: string; amount: number; method: string; notes: string | null }): Promise<boolean>;
-  onReverse(p: Payment): void;
+  activeCharge: string | null;
+  canCharge: boolean;
+  onCharge(): void;
   onCancel(reason: string): void;
   onDelete(): void;
   onUpload(file: File): void;
@@ -361,22 +350,12 @@ interface DetailProps {
 }
 
 function AccountDetail(props: DetailProps) {
-  const { kind, account: a, status, payments, attachments, writable, canDelete, busy } = props;
+  const { kind, account: a, status, payments, attachments, writable, canDelete } = props;
   const isRec = kind === 'receber';
   const open = openAmount(a);
-  const [amountText, setAmountText] = useState(open.toFixed(2).replace('.', ','));
-  const [paidAt, setPaidAt] = useState(today());
-  const [method, setMethod] = useState(PAYMENT_METHODS[0]);
-  const [notes, setNotes] = useState('');
   const [cancelReason, setCancelReason] = useState('');
   const [showCancel, setShowCancel] = useState(false);
   const closed = status === 'pago' || status === 'cancelado';
-
-  const pay = async () => {
-    const amount = parseMoney(amountText);
-    const ok = await props.onPay({ paid_at: paidAt, amount: isNaN(amount) ? 0 : amount, method, notes: notes.trim() || null });
-    if (ok) { setNotes(''); }
-  };
 
   return (
     <Modal wide title={a.description} onClose={props.onClose}
@@ -407,31 +386,8 @@ function AccountDetail(props: DetailProps) {
         </div>
       )}
 
-      {writable && !closed && (
-        <>
-          <h4 className="form-section">{isRec ? 'Registrar recebimento' : 'Registrar pagamento'}</h4>
-          <div className="form-grid">
-            <Field label="Valor (R$)" hint={`Em aberto: ${brl(open)} — informe um valor menor para pagamento parcial`}><input className="input" inputMode="decimal" value={amountText} onChange={(e) => setAmountText(e.target.value)} /></Field>
-            <Field label="Data"><input className="input" type="date" value={paidAt} max={today()} onChange={(e) => setPaidAt(e.target.value)} /></Field>
-            <Field label="Forma de pagamento"><select className="select" value={method} onChange={(e) => setMethod(e.target.value)}>{PAYMENT_METHODS.map((m) => <option key={m}>{m}</option>)}</select></Field>
-            <Field label="Observação"><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-          </div>
-          <div className="row mt"><button className="btn success" type="button" disabled={busy} onClick={pay}><Icon name="check" />{isRec ? 'Registrar recebimento' : 'Registrar pagamento'}</button></div>
-        </>
-      )}
-
-      <h4 className="form-section">Histórico de pagamentos</h4>
-      {payments.length === 0 ? <p className="muted">Nenhum pagamento registrado.</p> : (
-        <ul className="list bordered">
-          {payments.map((p) => (
-            <li key={p.id}>
-              <span className="kpi-ico tone-success"><Icon name="check" /></span>
-              <div className="grow"><b>{brl(p.amount)}</b> · {p.method}<div className="cell-sub">{fdate(p.paid_at)}{p.notes ? ` · ${p.notes}` : ''}{p.created_at ? ` · lançado em ${fdatetime(p.created_at)}` : ''}</div></div>
-              {canDelete && <button className="btn xs" type="button" onClick={() => props.onReverse(p)}><Icon name="undo" />Estornar</button>}
-            </li>
-          ))}
-        </ul>
-      )}
+      {writable && !closed && <PaymentForm key={a.id + a.paid_amount} kind={kind} account={a} existing={payments} />}
+      <PaymentHistory kind={kind} payments={payments} />
 
       <h4 className="form-section">Comprovantes e anexos</h4>
       {attachments.length === 0 ? <p className="muted">Nenhum arquivo anexado.</p> : (
@@ -454,6 +410,11 @@ function AccountDetail(props: DetailProps) {
 
       {isRec && (
         <>
+          <h4 className="form-section">Cobrança</h4>
+          {props.activeCharge
+            ? <p><Badge tone="info">Cobrança {props.activeCharge}</Badge> <Link to={`/cobrancas?busca=${props.activeCharge}`}>Abrir cobrança</Link></p>
+            : props.canCharge && !closed ? <button className="btn sm" type="button" onClick={props.onCharge}><Icon name="send" />Gerar cobrança desta conta</button>
+              : <p className="muted">Nenhuma cobrança ativa.</p>}
           <h4 className="form-section">Nota fiscal</h4>
           {props.nfseCount > 0
             ? <p><Badge tone="info">{props.nfseCount} documento(s) fiscal(is) vinculado(s)</Badge> <Link to={`/fiscal/notas?lancamento=${a.id}`}>Ver no módulo fiscal</Link></p>

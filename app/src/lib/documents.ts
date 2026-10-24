@@ -39,3 +39,45 @@ export function validateDocument(personType: 'PF' | 'PJ', value: string): string
 }
 
 export const isValidEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+
+// ---------------------------------------------------------------------------
+// Máscaras progressivas (portadas do LSB — src/lib/documento.ts): aplicadas
+// enquanto a pessoa digita; o valor gravado continua sendo só dígitos.
+// ---------------------------------------------------------------------------
+export function formatDocumentProgressive(raw: string | null | undefined, personType?: 'PF' | 'PJ'): string {
+  const d = onlyDigits(raw);
+  if (!d) return '';
+  const asCpf = personType ? personType === 'PF' : d.length <= 11;
+  if (asCpf) {
+    return d.slice(0, 11)
+      .replace(/^(\d{3})(\d)/, '$1.$2')
+      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+  }
+  return d.slice(0, 14)
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5');
+}
+
+export function formatCep(raw: string | null | undefined): string {
+  const d = onlyDigits(raw).slice(0, 8);
+  return d.length <= 5 ? d : `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
+// (67) 3333-3333 (10 dígitos) ou (67) 99999-9999 (11 dígitos)
+export function formatPhone(raw: string | null | undefined): string {
+  const d = onlyDigits(raw).slice(0, 11);
+  if (!d) return '';
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+/** Raiz do CNPJ (8 primeiros dígitos): identifica matriz e filiais (LSB). */
+export const cnpjRoot = (doc: string | null | undefined) => {
+  const d = onlyDigits(doc);
+  return d.length === 14 ? d.slice(0, 8) : null;
+};

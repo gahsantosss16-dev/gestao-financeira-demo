@@ -3,7 +3,7 @@
 // Os serviços NÃO têm códigos tributários: esses dependem da contabilidade.
 import { addDays, addMonths, round2 } from '../lib/format';
 import { nextRecurrenceDate } from '../lib/finance';
-import type { Category, FiscalIssuer, Party, Payable, PayablePayment, Profile, Receivable, ReceivablePayment, Service, Tables } from '../lib/types';
+import type { Category, Charge, FiscalIssuer, Party, PartyRegistration, Payable, PayablePayment, Profile, Receivable, ReceivablePayment, Service, Tables } from '../lib/types';
 
 export type DemoDb = { [K in keyof Tables]: Tables[K][] } & { seq: number; seededFor: string };
 
@@ -29,6 +29,14 @@ function checkDigits(base: number[], weightsFor: (len: number) => number[]) {
   return digits.join('');
 }
 const cpfWeights = (len: number) => Array.from({ length: len }, (_, i) => len + 1 - i);
+/** IE fictícia de MS com dígito verificador válido (prefixo 28). */
+function msIe(base6: number[]) {
+  const d = [2, 8, ...base6];
+  const sum = d.reduce((a, x, i) => a + x * (9 - i), 0);
+  const r = sum % 11;
+  const t = r === 0 ? 0 : 11 - r;
+  return [...d, t > 9 ? 0 : t].join('');
+}
 const cnpjWeights = (len: number) => (len === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
 
 export const DEMO_USERS: Profile[] = [
@@ -90,6 +98,23 @@ export function buildDemoDb(todayIso: string): DemoDb {
       phone: `(67) 3${int(100, 999)}-${int(1000, 9999)}`, contact_name: 'Responsável financeiro',
     })),
   ];
+  // produtores rurais: pessoas físicas e empresas do agro; cada um com IE de MS,
+  // e alguns com uma segunda propriedade (mesmo CPF/CNPJ, outra IE)
+  const party_registrations: PartyRegistration[] = [];
+  parties.forEach((p) => {
+    const rural = p.person_type === 'PF' || /Agropecu|Fazenda|Cooperativa|Latic/.test(p.name);
+    p.rural_producer = rural;
+    if (!rural) return;
+    const props = p.person_type === 'PF' && r() < 0.35 ? 2 : 1;
+    for (let k = 0; k < props; k++) {
+      party_registrations.push({
+        id: id('ie'), party_id: p.id, uf: 'MS', ie: msIe(Array.from({ length: 6 }, () => int(0, 9))),
+        property_name: p.person_type === 'PF' ? `Fazenda ${pick(['Santa Rita', 'Boa Vista', 'São João', 'Três Lagoas', 'Esperança', 'Recanto'])} (fictícia)` : 'Sede',
+        city: pick(['Campo Grande', 'Dourados', 'Sidrolândia', 'Terenos', 'Ribas do Rio Pardo']), city_ibge_code: null,
+        status: null, checked_at: null, is_primary: k === 0, active: true, notes: null, created_at: created,
+      });
+    }
+  });
   const clients = parties.filter((p) => p.kind !== 'fornecedor');
   const suppliers = parties.filter((p) => p.kind !== 'cliente');
 
@@ -153,6 +178,17 @@ export function buildDemoDb(todayIso: string): DemoDb {
   payables.push({ ...base, id: id('pag'), party_id: papelaria.id, category_id: cat('Material de escritório'), description: 'Material de escritório', due_date: addDays(todayIso, 3), amount: 420.5, paid_amount: 0, recurrence: 'nenhuma', recurrence_parent_id: null });
   payables.push({ ...base, id: id('pag'), party_id: null, category_id: cat('Impostos e taxas'), description: 'Taxa municipal (exemplo)', due_date: addDays(todayIso, -6), amount: 185, paid_amount: 0, recurrence: 'anual', recurrence_parent_id: null });
 
+  // algumas cobranças internas para contas em aberto
+  const charges: Charge[] = [];
+  const year = Number(todayIso.slice(0, 4));
+  receivables.filter((rc) => rc.paid_amount < rc.amount && rc.due_date >= addDays(todayIso, -40)).slice(0, 6).forEach((rc, i) => {
+    charges.push({
+      id: id('cob'), code: `COB-${year}-${String(i + 1).padStart(5, '0')}`, year, number: i + 1, receivable_id: rc.id, party_id: rc.party_id,
+      amount: rc.amount, due_date: rc.due_date, description: rc.description, notes: null, canceled_at: null, cancel_reason: null,
+      last_notified_at: null, notification_channel: null, created_at: created,
+    });
+  });
+
   const emptyIssuer = (environment: FiscalIssuer['environment']): FiscalIssuer => ({
     environment, cnpj: null, legal_name: null, trade_name: null, municipal_registration: null, city_ibge_code: null,
     tax_regime: null, simples_nacional: null, email: null, phone: null, address: null, certificate_type: 'a_confirmar',
@@ -165,5 +201,6 @@ export function buildDemoDb(todayIso: string): DemoDb {
     parties, categories, services, receivables, receivable_payments, payables, payable_payments,
     attachments: [], audit_log: [], fiscal_issuer: [emptyIssuer('homologacao'), emptyIssuer('producao')],
     nfse_documents: [], nfse_requests: [],
+    party_registrations, charges, import_batches: [], import_rows: [],
   };
 }

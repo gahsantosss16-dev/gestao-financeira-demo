@@ -7,6 +7,7 @@ interface Fake {
   profile: Record<string, unknown>;
   setSession: ReturnType<typeof vi.fn>;
   updateUser: ReturnType<typeof vi.fn>;
+  signIn: ReturnType<typeof vi.fn>;
   profileUpdates: unknown[];
 }
 const fake = vi.hoisted(() => ({}) as Fake);
@@ -31,7 +32,7 @@ vi.mock('./data/supabaseSource', async () => {
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
       updateUser: (...a: unknown[]) => fake.updateUser(...a),
       signOut: async () => { fake.session = null; return { error: null }; },
-      signInWithPassword: async () => ({ error: { message: 'Invalid login credentials' } }),
+      signInWithPassword: (...a: unknown[]) => fake.signIn(...a),
       resetPasswordForEmail: async () => ({ error: null }),
     },
     from: builder,
@@ -55,6 +56,7 @@ beforeEach(() => {
     profileUpdates: [],
     setSession: vi.fn(async () => { fake.session = { user: { id: 'u1', email: 'convidado@exemplo.org' } }; return { data: {}, error: null }; }),
     updateUser: vi.fn(async () => ({ data: {}, error: null })),
+    signIn: vi.fn(async ({ password }: { password: string }) => (password === 'SenhaAtual2026' ? { error: null } : { error: { message: 'Invalid login credentials' } })),
   });
   sessionStorage.clear();
 });
@@ -113,5 +115,28 @@ describe('aceite de convite (Supabase)', () => {
     fake.session = { user: { id: 'u1', email: 'convidado@exemplo.org' } };
     await renderAppWithHash('');
     expect(await screen.findByRole('heading', { name: 'Painel financeiro' })).toBeTruthy();
+  });
+});
+
+describe('Meu Perfil com Supabase: alteração de senha', () => {
+  it('exige a senha atual correta antes de trocar', async () => {
+    fake.session = { user: { id: 'u1', email: 'convidado@exemplo.org' } };
+    await renderAppWithHash('#/meu-perfil');
+    expect(await screen.findByRole('heading', { name: 'Meu Perfil' })).toBeTruthy();
+    const fill = (cur: string, next: string, conf: string) => {
+      fireEvent.change(screen.getByLabelText('Senha atual'), { target: { value: cur } });
+      fireEvent.change(screen.getByLabelText(/^Nova senha/), { target: { value: next } });
+      fireEvent.change(screen.getByLabelText('Confirme a nova senha'), { target: { value: conf } });
+      fireEvent.click(screen.getByRole('button', { name: 'Alterar senha' }));
+    };
+    fill('errada', 'NovaSenha2026', 'NovaSenha2026');
+    expect(await screen.findByText('Senha atual incorreta.')).toBeTruthy();
+    expect(fake.updateUser).not.toHaveBeenCalled();
+    fill('SenhaAtual2026', 'curta1', 'curta1');
+    expect(await screen.findByText(/pelo menos 8 caracteres/)).toBeTruthy();
+    fill('SenhaAtual2026', 'NovaSenha2026', 'NovaSenha2026');
+    expect(await screen.findByText('Senha alterada com sucesso.')).toBeTruthy();
+    expect(fake.signIn).toHaveBeenLastCalledWith({ email: 'convidado@exemplo.org', password: 'SenhaAtual2026' });
+    expect(fake.updateUser).toHaveBeenCalledWith({ password: 'NovaSenha2026' });
   });
 });

@@ -1,14 +1,14 @@
 # ASSOCIAPEC — Sistema de Gestão Financeira
 
 Aplicação web (React + TypeScript + Supabase) para gestão financeira da ASSOCIAPEC, com estrutura
-preparada para emissão de NFS-e em Campo Grande/MS. **Etapa 1 (fundação) em homologação.**
+preparada para emissão de NFS-e em Campo Grande/MS. **Etapa 2 (operação financeira) em homologação.**
 
 | | |
 | --- | --- |
 | Aplicação | [`app/`](app) — `cd app && npm install && npm run dev` (sem Supabase configurado abre em **modo demonstração**) |
 | Banco de dados | [`supabase/migrations`](supabase/migrations) — RLS, auditoria, storage privado; testes em `supabase/tests/run.sh` |
 | Backend fiscal | [`supabase/functions/nfse`](supabase/functions/nfse) — integração **desabilitada** até a Etapa 3 |
-| Documentação | [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) · [`docs/ETAPA-1.md`](docs/ETAPA-1.md) |
+| Documentação | [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md) · [`docs/ETAPA-1.md`](docs/ETAPA-1.md) · [`docs/ETAPA-2.md`](docs/ETAPA-2.md) |
 
 Banco implantado no projeto Supabase `cpepbgyycnbbfvtbzkgk` (migração `fundacao`, 24/10/2026). Nenhuma nota fiscal é emitida.
 

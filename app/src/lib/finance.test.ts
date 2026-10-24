@@ -60,7 +60,7 @@ describe('painel financeiro', () => {
         acc({ id: 'c', amount: 999, due_date: '2026-09-01', canceled_at: 'x' }),
       ],
       payables: [pay({ id: 'd', amount: 50, due_date: '2026-10-20' }), pay({ id: 'e', amount: 80, due_date: '2026-10-25' })],
-      receivablePayments: [{ paid_at: '2026-10-05', amount: 100 }, { paid_at: '2026-08-01', amount: 70 }],
+      receivablePayments: [{ paid_at: '2026-10-05', amount: 100 }, { paid_at: '2026-08-01', amount: 70 }, { paid_at: '2026-10-07', amount: 999, reversed_at: '2026-10-08' }],
       payablePayments: [{ paid_at: '2026-10-06', amount: 30 }],
     });
     expect(s.receivedInPeriod).toBe(100);

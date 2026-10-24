@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { ROLE_LABEL } from '../lib/permissions';
 import type { Role } from '../lib/types';
 import { useFeedback } from './Feedback';
+import { BrandLogo } from './Brand';
 import { Icon } from './Icon';
+import { UserMenu } from './UserMenu';
 
 interface NavItem { to: string; label: string; icon: string; roles?: Role[]; stage?: string }
 const NAV: { label: string; items: NavItem[] }[] = [
@@ -12,6 +13,7 @@ const NAV: { label: string; items: NavItem[] }[] = [
   { label: 'Financeiro', items: [
     { to: '/receber', label: 'Contas a receber', icon: 'in' },
     { to: '/pagar', label: 'Contas a pagar', icon: 'out' },
+    { to: '/cobrancas', label: 'Cobranças', icon: 'send' },
   ] },
   { label: 'Cadastros', items: [
     { to: '/cadastros/pessoas', label: 'Clientes e fornecedores', icon: 'users' },
@@ -22,9 +24,11 @@ const NAV: { label: string; items: NavItem[] }[] = [
     { to: '/fiscal/notas', label: 'Notas fiscais (NFS-e)', icon: 'file' },
     { to: '/fiscal/configuracao', label: 'Dados fiscais', icon: 'settings', roles: ['admin', 'fiscal', 'financeiro'] },
   ] },
+  { label: 'Importação', items: [
+    { to: '/importacao', label: 'Importar planilhas', icon: 'upload', roles: ['admin', 'financeiro'] },
+  ] },
   { label: 'Próximas etapas', items: [
-    { to: '/relatorios', label: 'Relatórios', icon: 'chart', stage: 'Etapa 2' },
-    { to: '/importacao', label: 'Importar planilhas', icon: 'upload', stage: 'Etapa 2' },
+    { to: '/relatorios', label: 'Relatórios', icon: 'chart', stage: 'Em breve' },
   ] },
   { label: 'Administração', items: [
     { to: '/admin/usuarios', label: 'Usuários e perfis', icon: 'shield', roles: ['admin'] },
@@ -42,11 +46,10 @@ const BOTTOM: NavItem[] = [
 const THEME_KEY = 'associapec-theme';
 
 export function Layout() {
-  const { profile, mode, signOut, resetDemo } = useAuth();
+  const { profile, mode, resetDemo } = useAuth();
   const { confirm, toast } = useFeedback();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
-  const initials = (profile?.full_name || profile?.email || '?').split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
   useEffect(() => {
@@ -82,10 +85,7 @@ export function Layout() {
       )}
       <div className="app">
         <aside className="sidebar" aria-label="Menu principal">
-          <NavLink className="brand" to="/">
-            <span className="brand-mark" aria-hidden="true"><Icon name="check" /></span>
-            <span className="brand-text"><b>ASSOCIAPEC</b><small>Gestão Financeira</small></span>
-          </NavLink>
+          <NavLink className="brand-link" to="/" aria-label="ASSOCIAPEC — Painel financeiro"><BrandLogo /></NavLink>
           <nav className="nav">
             {NAV.map((sec) => {
               const items = sec.items.filter(visible);
@@ -103,16 +103,6 @@ export function Layout() {
               );
             })}
           </nav>
-          <div className="sidebar-foot">
-            <div className="company-card">
-              <span className="avatar sm">{initials}</span>
-              <div className="grow-min">
-                <b className="truncate">{profile?.full_name || profile?.email}</b>
-                <small>{profile && ROLE_LABEL[profile.role]}</small>
-              </div>
-              <button className="icon-btn sm" type="button" aria-label="Sair" title="Sair" onClick={() => signOut()}><Icon name="logout" /></button>
-            </div>
-          </div>
         </aside>
         <div className="scrim" onClick={() => setMenuOpen(false)} />
         <div className="main">
@@ -124,6 +114,7 @@ export function Layout() {
             </span>
             <div className="topbar-actions">
               <button className="icon-btn" type="button" aria-label="Alternar tema claro/escuro" onClick={toggleTheme}><Icon name="moon" /></button>
+              <UserMenu />
             </div>
           </header>
           <main className="view" id="conteudo" tabIndex={-1}><Outlet /></main>

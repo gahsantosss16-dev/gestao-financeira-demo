@@ -61,7 +61,7 @@ export interface DashboardSummary {
   monthly: { month: string; receitas: number; despesas: number }[];
 }
 
-interface Paid { paid_at: string; amount: number }
+interface Paid { paid_at: string; amount: number; reversed_at?: string | null }
 
 export function dashboardSummary(input: {
   receivables: Receivable[];
@@ -72,7 +72,10 @@ export function dashboardSummary(input: {
   today: string;
   upcomingDays?: number;
 }): DashboardSummary {
-  const { receivables, payables, receivablePayments, payablePayments, period, today, upcomingDays = 7 } = input;
+  const { receivables, payables, period, today, upcomingDays = 7 } = input;
+  // pagamentos estornados não contam como receita/despesa realizada
+  const receivablePayments = input.receivablePayments.filter((p) => !p.reversed_at);
+  const payablePayments = input.payablePayments.filter((p) => !p.reversed_at);
   const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));
   const active = <T extends Account>(xs: T[]) => xs.filter((x) => !x.canceled_at);
 
@@ -114,3 +117,25 @@ export function dashboardSummary(input: {
 }
 
 export const PAYMENT_METHODS = ['PIX', 'Boleto', 'Transferência', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro', 'Cheque'];
+
+export type ChargeStatus = 'pendente' | 'parcial' | 'paga' | 'vencida' | 'cancelada';
+export const CHARGE_STATUS_META: Record<ChargeStatus, { label: string; tone: string }> = {
+  pendente: { label: 'Pendente', tone: 'primary' },
+  parcial: { label: 'Parcialmente paga', tone: 'info' },
+  paga: { label: 'Paga', tone: 'success' },
+  vencida: { label: 'Vencida', tone: 'danger' },
+  cancelada: { label: 'Cancelada', tone: 'muted' },
+};
+
+/** Situação da cobrança derivada da conta a receber (fonte única dos valores pagos). */
+export function chargeStatus(
+  charge: { canceled_at: string | null; due_date: string; amount: number },
+  receivable: Pick<Receivable, 'amount' | 'paid_amount' | 'canceled_at'> | undefined,
+  todayIso: string,
+): ChargeStatus {
+  if (charge.canceled_at) return 'cancelada';
+  if (!receivable || receivable.canceled_at) return 'cancelada';
+  if (openAmount(receivable) === 0) return 'paga';
+  if (charge.due_date < todayIso) return 'vencida';
+  return receivable.paid_amount > 0 ? 'parcial' : 'pendente';
+}
